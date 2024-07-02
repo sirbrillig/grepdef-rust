@@ -57,7 +57,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn get_regexp_for_query(query: &str, file_type: FileType) -> Regex {
+fn get_regexp_for_query(query: &str, file_type: FileType) -> Regex {
     let regexp_string = match file_type {
         FileType::JS => &format!(r"\b(function|let|const)\s+{query}\b"),
     };

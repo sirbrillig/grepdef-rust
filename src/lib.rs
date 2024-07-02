@@ -107,9 +107,9 @@ function barfoo() {
         ";
         assert_eq!(
             vec![SearchResult {
-                file_path: "test".to_string(),
+                file_path: String::from("test"),
                 line_number: 4,
-                text: "function foo() {".to_string(),
+                text: String::from("function foo() {"),
             }],
             search(query, contents, FileType::JS, "test")
         )
@@ -132,9 +132,9 @@ function barfoo() {
             ";
         assert_eq!(
             vec![SearchResult {
-                file_path: "test".to_string(),
+                file_path: String::from("test"),
                 line_number: 5,
-                text: "    let foobar = 'hello';".to_string(),
+                text: String::from("    let foobar = 'hello';"),
             }],
             search(query, contents, FileType::JS, "test")
         )
@@ -157,9 +157,9 @@ function barfoo() {
             ";
         assert_eq!(
             vec![SearchResult {
-                file_path: "test".to_string(),
+                file_path: String::from("test"),
                 line_number: 5,
-                text: "    const foobar = 'hello';".to_string(),
+                text: String::from("    const foobar = 'hello';"),
             }],
             search(query, contents, FileType::JS, "test")
         )

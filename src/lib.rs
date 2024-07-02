@@ -9,22 +9,25 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn build(args: &Vec<String>) -> Result<Config, &'static str> {
-        let query = match args.get(1) {
+    pub fn build(mut args: impl Iterator<Item = String>) -> Result<Config, &'static str> {
+        // Throw away first arg which is the name of the binary.
+        args.next();
+
+        let query = match args.next() {
             Some(qry) => qry,
             None => {
                 return Err("You must provide a string to search for.");
             }
         };
-        let file_path = match args.get(2) {
+        let file_path = match args.next() {
             Some(qry) => qry,
             None => {
                 return Err("You must provide a file path after the search string.");
             }
         };
         Ok(Config {
-            query: query.clone(),
-            file_path: file_path.clone(),
+            query,
+            file_path,
             file_type: FileType::JS,
         })
     }

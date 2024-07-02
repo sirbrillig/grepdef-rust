@@ -57,6 +57,13 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+pub fn get_regexp_for_query(query: &str, file_type: FileType) -> Regex {
+    let regexp_string = match file_type {
+        FileType::JS => &format!(r"\b(function|let|const)\s+{query}\b"),
+    };
+    Regex::new(regexp_string).unwrap()
+}
+
 pub fn search(
     query: &str,
     contents: &str,
@@ -64,11 +71,8 @@ pub fn search(
     file_path: &str,
 ) -> Vec<SearchResult> {
     let mut results = Vec::new();
+    let re = get_regexp_for_query(query, file_type);
 
-    let regexp_string = match file_type {
-        FileType::JS => &format!(r"\b(function|let|const)\s+{query}\b"),
-    };
-    let re = Regex::new(regexp_string).unwrap();
 
     for (index, line) in contents.lines().enumerate() {
         if re.is_match(line) {

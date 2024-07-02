@@ -70,21 +70,18 @@ pub fn search(
     file_type: FileType,
     file_path: &str,
 ) -> Vec<SearchResult> {
-    let mut results = Vec::new();
     let re = get_regexp_for_query(query, file_type);
 
-
-    for (index, line) in contents.lines().enumerate() {
-        if re.is_match(line) {
-            let result = SearchResult {
-                file_path: file_path.to_string(),
-                line_number: index + 1,
-                text: line.to_string(),
-            };
-            results.push(result)
-        }
-    }
-    results
+    contents
+        .lines()
+        .enumerate()
+        .map(|(index, line)| SearchResult {
+            file_path: file_path.to_string(),
+            line_number: index + 1,
+            text: line.to_string(),
+        })
+        .filter(|result| re.is_match(&result.text))
+        .collect()
 }
 
 #[cfg(test)]

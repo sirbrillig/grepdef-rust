@@ -76,9 +76,9 @@ pub fn search(
         .lines()
         .enumerate()
         .map(|(index, line)| SearchResult {
-            file_path: file_path.to_string(),
+            file_path: String::from(file_path),
             line_number: index + 1,
-            text: line.to_string(),
+            text: String::from(line),
         })
         .filter(|result| re.is_match(&result.text))
         .collect()

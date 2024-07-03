@@ -45,13 +45,7 @@ pub struct SearchResult {
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    let contents = fs::read_to_string(&config.file_path)?;
-    for line in search(
-        &config.query,
-        &contents,
-        config.file_type,
-        &config.file_path,
-    ) {
+    for line in search(config)? {
         println!("Found: {}", line.text);
     }
     Ok(())
@@ -64,7 +58,17 @@ fn get_regexp_for_query(query: &str, file_type: FileType) -> Regex {
     Regex::new(regexp_string).unwrap()
 }
 
-pub fn search(
+pub fn search(config: Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    let contents = fs::read_to_string(&config.file_path)?;
+    Ok(search_file(
+        &config.query,
+        &contents,
+        config.file_type,
+        &config.file_path,
+    ))
+}
+
+fn search_file(
     query: &str,
     contents: &str,
     file_type: FileType,

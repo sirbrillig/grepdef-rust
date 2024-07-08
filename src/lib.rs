@@ -46,7 +46,7 @@ pub struct SearchResult {
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     for line in search(config)? {
-        println!("Found: {}", line.text);
+        println!("{}:{}:{}", line.file_path, line.line_number, line.text);
     }
     Ok(())
 }

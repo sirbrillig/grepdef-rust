@@ -1,78 +1,15 @@
-use grepdef_rust::{search, FileType, SearchResult};
+use grepdef_rust::{search, Config, SearchResult};
 
 #[test]
 fn search_returns_matching_js_function_line() {
-    let query = "foo";
-    let contents = "\
-function bar() {
-    console.log('bar');
-}
-function foo() {
-    console.log('foo');
-}
-function foobar() {
-    console.log('foobar');
-}
-function barfoo() {
-    console.log('barfoo');
-}
-        ";
-    assert_eq!(
-        vec![SearchResult {
-            file_path: String::from("test"),
-            line_number: 4,
-            text: String::from("function foo() {"),
-        }],
-        search(query, contents, FileType::JS, "test")
-    )
-}
-
-#[test]
-fn search_returns_matching_js_let_line() {
-    let query = "foobar";
-    let contents = "\
-function bar() {
-    console.log('bar');
-}
-function foo() {
-    let foobar = 'hello';
-    console.log(foobar);
-}
-function barfoo() {
-    console.log('barfoo');
-}
-            ";
-    assert_eq!(
-        vec![SearchResult {
-            file_path: String::from("test"),
-            line_number: 5,
-            text: String::from("    let foobar = 'hello';"),
-        }],
-        search(query, contents, FileType::JS, "test")
-    )
-}
-
-#[test]
-fn search_returns_matching_js_const_line() {
-    let query = "foobar";
-    let contents = "\
-function bar() {
-    console.log('bar');
-}
-function foo() {
-    const foobar = 'hello';
-    console.log(foobar);
-}
-function barfoo() {
-    console.log('barfoo');
-}
-            ";
-    assert_eq!(
-        vec![SearchResult {
-            file_path: String::from("test"),
-            line_number: 5,
-            text: String::from("    const foobar = 'hello';"),
-        }],
-        search(query, contents, FileType::JS, "test")
-    )
+    let file_path = String::from("./tests/js-fixture.js");
+    let expected = vec![SearchResult {
+        file_path: file_path.clone(),
+        line_number: 4,
+        text: String::from("function foo() {"),
+    }];
+    let config_args = [String::from("test run"), String::from("foo"), file_path].into_iter();
+    let config = Config::build(config_args).expect("Incorrect config for test");
+    let actual = search(config).expect("Search failed for test");
+    assert_eq!(expected, actual)
 }

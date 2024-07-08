@@ -65,7 +65,9 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
 fn get_regexp_for_query(query: &str, file_type: FileType) -> Regex {
     let regexp_string = match file_type {
-        FileType::JS => &format!(r"\b(function|let|const)\s+{query}\b"),
+        FileType::JS => &format!(
+            r"(\b(function|var|let|const|class)\s+{query}\b|\b{query}\([^)]*\)\s*\{{|\b{query}:)"
+        ),
     };
     Regex::new(regexp_string).unwrap()
 }

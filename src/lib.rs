@@ -25,10 +25,22 @@ impl Config {
                 return Err("You must provide a file path after the search string.");
             }
         };
+        let file_type_string = match args.next() {
+            Some(qry) => qry,
+            None => {
+                return Err("You must provide a file type after the file path (TEMPORARY).");
+            }
+        };
+        let file_type = match file_type_string.as_str() {
+            "js" => FileType::JS,
+            _ => {
+                return Err("Invalid file type");
+            }
+        };
         Ok(Config {
             query,
             file_path,
-            file_type: FileType::JS,
+            file_type,
         })
     }
 }

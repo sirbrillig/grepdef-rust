@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 exitcode = "1.1.2"
 regex = "1.10.5"
+rstest = "0.21.0"

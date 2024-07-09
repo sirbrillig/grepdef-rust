@@ -1,6 +1,20 @@
+use clap::Parser;
 use regex::Regex;
 use std::error::Error;
 use std::fs;
+
+#[derive(Parser, Debug)]
+pub struct Args {
+    /// The symbol name to search for
+    pub query: String,
+
+    /// The file path(s) to search
+    pub file_path: String,
+
+    /// The file type to search (js, ts, php)
+    #[arg(short = 't', long = "type")]
+    pub file_type: String,
+}
 
 pub struct Config {
     query: String,
@@ -9,44 +23,32 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn build(mut args: impl Iterator<Item = String>) -> Result<Config, &'static str> {
-        // Throw away first arg which is the name of the binary.
-        args.next();
-
-        let query = match args.next() {
-            Some(qry) => qry,
-            None => {
-                return Err("You must provide a string to search for.");
-            }
-        };
-        let file_path = match args.next() {
-            Some(qry) => qry,
-            None => {
-                return Err("You must provide a file path after the search string.");
-            }
-        };
-        let file_type_string = match args.next() {
-            Some(qry) => qry,
-            None => {
-                return Err("You must provide a file type after the file path (TEMPORARY).");
-            }
-        };
-        let file_type = match file_type_string.as_str() {
-            "js" => FileType::JS,
-            _ => {
-                return Err("Invalid file type");
-            }
-        };
+    pub fn new(
+        query: String,
+        file_path: String,
+        file_type: String,
+    ) -> Result<Config, &'static str> {
         Ok(Config {
             query,
             file_path,
-            file_type,
+            file_type: FileType::from_string(file_type)?,
         })
     }
 }
 
 pub enum FileType {
     JS,
+}
+
+impl FileType {
+    pub fn from_string(file_type_string: String) -> Result<FileType, &'static str> {
+        match file_type_string.as_str() {
+            "js" => Ok(FileType::JS),
+            _ => {
+                return Err("Invalid file type");
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]

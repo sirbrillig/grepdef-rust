@@ -3,7 +3,7 @@ use rstest::rstest;
 
 #[rstest]
 fn search_returns_matching_js_function_line() {
-    let file_path = String::from("./tests/js-fixture.js");
+    let file_path = String::from("./tests/fixtures/js-fixture.js");
     let query = String::from("parseQuery");
     let line_number = 7;
     let file_type_string = String::from("js");
@@ -37,7 +37,7 @@ fn search_returns_expected_line_number(
     #[case] file_type_string: String,
     #[case] line_number: usize,
 ) {
-    let file_path = String::from("./tests/js-fixture.js");
+    let file_path = String::from("./tests/fixtures/js-fixture.js");
     let args = Args {
         query,
         file_path,

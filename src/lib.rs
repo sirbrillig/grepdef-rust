@@ -28,17 +28,12 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(
-        query: String,
-        file_path: String,
-        file_type: String,
-        line_number: bool,
-    ) -> Result<Config, &'static str> {
+    pub fn new(args: Args) -> Result<Config, &'static str> {
         Ok(Config {
-            query,
-            file_path,
-            file_type: FileType::from_string(file_type)?,
-            line_number,
+            query: args.query,
+            file_path: args.file_path,
+            file_type: FileType::from_string(args.file_type)?,
+            line_number: args.line_number,
         })
     }
 }

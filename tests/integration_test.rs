@@ -1,4 +1,4 @@
-use grepdef_rust::{search, Config, SearchResult};
+use grepdef_rust::{search, Args, Config, SearchResult};
 use rstest::rstest;
 
 #[rstest]
@@ -12,8 +12,13 @@ fn search_returns_matching_js_function_line() {
         line_number,
         text: String::from("function parseQuery() {"),
     }];
-    let config =
-        Config::new(query, file_path, file_type_string, true).expect("Incorrect config for test");
+    let args = Args {
+        query,
+        file_path,
+        file_type: file_type_string,
+        line_number: true,
+    };
+    let config = Config::new(args).expect("Incorrect config for test");
     let actual = search(&config).expect("Search failed for test");
     assert_eq!(expected, actual);
 }
@@ -33,8 +38,13 @@ fn search_returns_expected_line_number(
     #[case] line_number: usize,
 ) {
     let file_path = String::from("./tests/js-fixture.js");
-    let config = Config::new(query, file_path, file_type_string, true)
-        .expect("Search failed, invalid options");
+    let args = Args {
+        query,
+        file_path,
+        file_type: file_type_string,
+        line_number: true,
+    };
+    let config = Config::new(args).expect("Search failed, invalid options");
     let actual = search(&config).expect("Search failed for test");
     assert_eq!(1, actual.len());
     let first_actual = actual.get(0).expect("Search failed for test");

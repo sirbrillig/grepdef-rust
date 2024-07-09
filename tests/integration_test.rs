@@ -13,8 +13,8 @@ fn search_returns_matching_js_function_line() {
         text: String::from("function parseQuery() {"),
     }];
     let config =
-        Config::new(query, file_path, file_type_string).expect("Incorrect config for test");
-    let actual = search(config).expect("Search failed for test");
+        Config::new(query, file_path, file_type_string, true).expect("Incorrect config for test");
+    let actual = search(&config).expect("Search failed for test");
     assert_eq!(expected, actual);
 }
 
@@ -33,9 +33,9 @@ fn search_returns_expected_line_number(
     #[case] line_number: usize,
 ) {
     let file_path = String::from("./tests/js-fixture.js");
-    let config =
-        Config::new(query, file_path, file_type_string).expect("Search failed, invalid options");
-    let actual = search(config).expect("Search failed for test");
+    let config = Config::new(query, file_path, file_type_string, true)
+        .expect("Search failed, invalid options");
+    let actual = search(&config).expect("Search failed for test");
     assert_eq!(1, actual.len());
     let first_actual = actual.get(0).expect("Search failed for test");
     assert_eq!(line_number, first_actual.line_number);

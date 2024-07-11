@@ -2,6 +2,7 @@ use clap::Parser;
 use regex::Regex;
 use std::error::Error;
 use std::fs;
+use walkdir::WalkDir;
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -51,6 +52,12 @@ impl FileType {
             }
         }
     }
+
+    pub fn to_string(&self) -> &str {
+        match self {
+            FileType::JS => "js",
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -80,25 +87,44 @@ fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
     Regex::new(regexp_string).unwrap()
 }
 
+fn does_file_path_match_type(path: &str, file_type: &FileType) -> bool {
+    path.ends_with(file_type.to_string())
+}
+
 pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
-    let contents = fs::read_to_string(&config.file_path)?;
-    Ok(search_file(
-        &config.query,
-        &contents,
-        &config.file_type,
-        &config.file_path,
-    ))
+    let mut results = vec![];
+
+    for entry in WalkDir::new(&config.file_path) {
+        let path = entry?.into_path();
+        if path.is_dir() {
+            continue;
+        }
+        let path = match path.to_str() {
+            Some(p) => p.to_string(),
+            None => return Err("Error getting string from path".into()),
+        };
+        if !does_file_path_match_type(&path, &config.file_type) {
+            continue;
+        }
+        let search_result = search_file(&config.query, &config.file_type, &path);
+        match search_result {
+            Ok(result_entries) => results.extend(result_entries),
+            Err(err) => return Err(err),
+        }
+    }
+
+    return Ok(results);
 }
 
 fn search_file(
     query: &str,
-    contents: &str,
     file_type: &FileType,
     file_path: &str,
-) -> Vec<SearchResult> {
+) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    let contents = fs::read_to_string(&file_path)?;
     let re = get_regexp_for_query(query, file_type);
 
-    contents
+    Ok(contents
         .lines()
         .enumerate()
         .map(|(index, line)| SearchResult {
@@ -107,5 +133,5 @@ fn search_file(
             text: String::from(line),
         })
         .filter(|result| re.is_match(&result.text))
-        .collect()
+        .collect())
 }

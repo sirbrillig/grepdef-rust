@@ -50,3 +50,25 @@ fn search_returns_expected_line_number(
     let first_actual = actual.get(0).expect("Search failed for test");
     assert_eq!(line_number, first_actual.line_number);
 }
+
+#[rstest]
+fn search_returns_matching_js_function_line_for_recursive() {
+    let file_path = String::from("./tests");
+    let query = String::from("parseQuery");
+    let line_number = 7;
+    let file_type_string = String::from("js");
+    let expected = vec![SearchResult {
+        file_path: String::from("./tests/fixtures/js-fixture.js"),
+        line_number,
+        text: String::from("function parseQuery() {"),
+    }];
+    let args = Args {
+        query,
+        file_path,
+        file_type: file_type_string,
+        line_number: true,
+    };
+    let config = Config::new(args).expect("Incorrect config for test");
+    let actual = search(&config).expect("Search failed for test");
+    assert_eq!(expected, actual);
+}

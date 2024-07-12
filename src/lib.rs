@@ -3,6 +3,7 @@ use ignore::Walk;
 use regex::Regex;
 use std::error::Error;
 use std::fs;
+use std::io::{self, BufRead};
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -127,16 +128,21 @@ fn search_file(
     file_type: &FileType,
     file_path: &str,
 ) -> Result<Vec<SearchResult>, Box<dyn Error>> {
-    let contents = fs::read_to_string(&file_path)?;
+    let file = fs::File::open(&file_path)?;
+    let lines = io::BufReader::new(file).lines();
     let re = get_regexp_for_query(query, file_type);
 
-    Ok(contents
-        .lines()
+    Ok(lines
         .enumerate()
         .map(|(index, line)| SearchResult {
             file_path: String::from(file_path),
             line_number: index + 1,
-            text: String::from(line),
+            text: match line {
+                Ok(line) => String::from(line),
+                // If reading the line causes an error (eg: invalid UTF), then skip it by treating
+                // it as empty.
+                Err(_err) => String::from(""),
+            },
         })
         .filter(|result| re.is_match(&result.text))
         .collect())

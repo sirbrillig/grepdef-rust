@@ -52,12 +52,6 @@ impl FileType {
             }
         }
     }
-
-    pub fn to_string(&self) -> &str {
-        match self {
-            FileType::JS => "js",
-        }
-    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -78,6 +72,13 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn get_regexp_for_file_type(file_type: &FileType) -> Regex {
+    let regexp_string = match file_type {
+        FileType::JS => &format!(r"\.(js|jsx|ts|tsx|mjs|cjs)$"),
+    };
+    Regex::new(regexp_string).unwrap()
+}
+
 fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
     let regexp_string = match file_type {
         FileType::JS => &format!(
@@ -88,7 +89,8 @@ fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
 }
 
 fn does_file_path_match_type(path: &str, file_type: &FileType) -> bool {
-    path.ends_with(file_type.to_string())
+    let re = get_regexp_for_file_type(file_type);
+    re.is_match(path)
 }
 
 pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {

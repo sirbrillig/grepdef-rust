@@ -6,6 +6,6 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.5.9", features = ["derive"] }
 exitcode = "1.1.2"
+ignore = "0.4.22"
 regex = "1.10.5"
 rstest = "0.21.0"
-walkdir = "2.5.0"

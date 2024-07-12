@@ -1,8 +1,8 @@
 use clap::Parser;
+use ignore::Walk;
 use regex::Regex;
 use std::error::Error;
 use std::fs;
-use walkdir::WalkDir;
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -93,10 +93,17 @@ fn does_file_path_match_type(path: &str, file_type: &FileType) -> bool {
     re.is_match(path)
 }
 
+pub fn should_ignore_path(config: &Config, path: &str) -> bool {
+    if does_file_path_match_type(&path, &config.file_type) {
+        return false;
+    }
+    return true;
+}
+
 pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let mut results = vec![];
 
-    for entry in WalkDir::new(&config.file_path) {
+    for entry in Walk::new(&config.file_path) {
         let path = entry?.into_path();
         if path.is_dir() {
             continue;
@@ -105,7 +112,7 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
             Some(p) => p.to_string(),
             None => return Err("Error getting string from path".into()),
         };
-        if !does_file_path_match_type(&path, &config.file_type) {
+        if should_ignore_path(&config, &path) {
             continue;
         }
         let search_result = search_file(&config.query, &config.file_type, &path);

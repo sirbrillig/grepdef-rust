@@ -171,3 +171,76 @@ fn search_returns_matching_ts_function_line_for_recursive() {
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }
+
+#[rstest]
+fn search_returns_matching_php_function_line() {
+    let file_path = String::from("./tests/fixtures/php-fixture.php");
+    let query = String::from("parseQuery");
+    let line_number = 6;
+    let file_type_string = String::from("php");
+    let expected = vec![SearchResult {
+        file_path: file_path.clone(),
+        line_number,
+        text: String::from("function parseQuery() {"),
+    }];
+    let args = Args {
+        query,
+        file_path,
+        file_type: file_type_string,
+        line_number: true,
+    };
+    let config = Config::new(args).expect("Incorrect config for test");
+    let actual = search(&config).expect("Search failed for test");
+    assert_eq!(expected, actual);
+}
+
+#[rstest]
+#[case(String::from("queryDb"), String::from("php"), 2)]
+#[case(String::from("parseQuery"), String::from("php"), 6)]
+#[case(String::from("Foo"), String::from("php"), 11)]
+#[case(String::from("Bar"), String::from("php"), 14)]
+#[case(String::from("Zoom"), String::from("php"), 17)]
+#[case(String::from("MyEnum"), String::from("php"), 20)]
+#[case(String::from("doSomething"), String::from("php"), 24)]
+#[case(String::from("doSomethingAbsolute"), String::from("php"), 26)]
+fn search_returns_expected_line_number_php(
+    #[case] query: String,
+    #[case] file_type_string: String,
+    #[case] line_number: usize,
+) {
+    let file_path = String::from("./tests/fixtures/php-fixture.php");
+    let args = Args {
+        query,
+        file_path,
+        file_type: file_type_string,
+        line_number: true,
+    };
+    let config = Config::new(args).expect("Search failed, invalid options");
+    let actual = search(&config).expect("Search failed for test");
+    assert_eq!(1, actual.len());
+    let first_actual = actual.get(0).expect("Search failed for test");
+    assert_eq!(line_number, first_actual.line_number);
+}
+
+#[rstest]
+fn search_returns_matching_php_function_line_for_recursive() {
+    let file_path = String::from("./tests");
+    let query = String::from("parseQuery");
+    let line_number = 6;
+    let file_type_string = String::from("php");
+    let expected = vec![SearchResult {
+        file_path: String::from("./tests/fixtures/php-fixture.php"),
+        line_number,
+        text: String::from("function parseQuery() {"),
+    }];
+    let args = Args {
+        query,
+        file_path,
+        file_type: file_type_string,
+        line_number: true,
+    };
+    let config = Config::new(args).expect("Incorrect config for test");
+    let actual = search(&config).expect("Search failed for test");
+    assert!(actual.iter().all(|item| expected.contains(item)));
+    assert!(expected.iter().all(|item| actual.contains(item)));
+}

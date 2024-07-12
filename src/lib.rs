@@ -41,12 +41,14 @@ impl Config {
 
 pub enum FileType {
     JS,
+    PHP,
 }
 
 impl FileType {
     pub fn from_string(file_type_string: String) -> Result<FileType, &'static str> {
         match file_type_string.as_str() {
             "js" => Ok(FileType::JS),
+            "php" => Ok(FileType::PHP),
             _ => {
                 return Err("Invalid file type");
             }
@@ -61,6 +63,7 @@ impl FileType {
     fn get_regexp_for_file_type(&self) -> Regex {
         let regexp_string = match self {
             FileType::JS => &format!(r"\.(js|jsx|ts|tsx|mjs|cjs)$"),
+            FileType::PHP => &format!(r"\.php$"),
         };
         Regex::new(regexp_string).unwrap()
     }
@@ -89,6 +92,7 @@ fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
         FileType::JS => &format!(
             r"(\b(function|var|let|const|class|interface|type)\s+{query}\b|\b{query}\([^)]*\)\s*(:[^\{{]+)?\{{|\b{query}:|@typedef\s*(\{{[^\}}]+\}})?\s*{query}\b)"
         ),
+        FileType::PHP => &format!(r"\b(function|class|trait|interface|enum) {query}\b"),
     };
     Regex::new(regexp_string).unwrap()
 }

@@ -93,13 +93,6 @@ fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
     Regex::new(regexp_string).unwrap()
 }
 
-fn should_ignore_path(config: &Config, path: &str) -> bool {
-    if config.file_type.does_file_path_match_type(&path) {
-        return false;
-    }
-    return true;
-}
-
 pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let mut results = vec![];
 
@@ -112,7 +105,7 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
             Some(p) => p.to_string(),
             None => return Err("Error getting string from path".into()),
         };
-        if should_ignore_path(&config, &path) {
+        if !config.file_type.does_file_path_match_type(&path) {
             continue;
         }
         let search_result = search_file(&config.query, &config.file_type, &path);

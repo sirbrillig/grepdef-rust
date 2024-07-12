@@ -82,7 +82,7 @@ fn get_regexp_for_file_type(file_type: &FileType) -> Regex {
 fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
     let regexp_string = match file_type {
         FileType::JS => &format!(
-            r"(\b(function|var|let|const|class)\s+{query}\b|\b{query}\([^)]*\)\s*\{{|\b{query}:)"
+            r"(\b(function|var|let|const|class|interface|type)\s+{query}\b|\b{query}\([^)]*\)\s*(:[^\{{]+)?\{{|\b{query}:|@typedef\s*(\{{[^\}}]+\}})?\s*{query}\b)"
         ),
     };
     Regex::new(regexp_string).unwrap()

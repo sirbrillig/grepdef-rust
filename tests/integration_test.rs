@@ -80,6 +80,38 @@ fn search_returns_expected_line_number_jsx(
 }
 
 #[rstest]
+#[case(String::from("queryDbTS"), String::from("js"), 1)]
+#[case(String::from("makeQueryTS"), String::from("js"), 4)]
+#[case(String::from("parseQueryTS"), String::from("js"), 7)]
+#[case(String::from("objectWithFunctionShorthandTS"), String::from("js"), 15)]
+#[case(String::from("shorthandFunctionTS"), String::from("js"), 16)]
+#[case(String::from("longhandFunctionTS"), String::from("js"), 25)]
+#[case(String::from("longhandArrowFunctionTS"), String::from("js"), 34)]
+#[case(String::from("longhandPropertyTS"), String::from("js"), 43)]
+#[case(String::from("AnInterface"), String::from("js"), 59)]
+#[case(String::from("AType"), String::from("js"), 63)]
+#[case(String::from("TypeDefObject"), String::from("js"), 66)]
+#[case(String::from("TypeDefSimple"), String::from("js"), 72)]
+fn search_returns_expected_line_number_ts(
+    #[case] query: String,
+    #[case] file_type_string: String,
+    #[case] line_number: usize,
+) {
+    let file_path = String::from("./tests/fixtures/ts-fixture.ts");
+    let args = Args {
+        query,
+        file_path,
+        file_type: file_type_string,
+        line_number: true,
+    };
+    let config = Config::new(args).expect("Search failed, invalid options");
+    let actual = search(&config).expect("Search failed for test");
+    assert_eq!(1, actual.len());
+    let first_actual = actual.get(0).expect("Search failed for test");
+    assert_eq!(line_number, first_actual.line_number);
+}
+
+#[rstest]
 fn search_returns_matching_js_function_line_for_recursive() {
     let file_path = String::from("./tests");
     let query = String::from("parseQuery");

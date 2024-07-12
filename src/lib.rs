@@ -52,6 +52,18 @@ impl FileType {
             }
         }
     }
+
+    pub fn does_file_path_match_type(&self, path: &str) -> bool {
+        let re = FileType::get_regexp_for_file_type(self);
+        re.is_match(path)
+    }
+
+    fn get_regexp_for_file_type(&self) -> Regex {
+        let regexp_string = match self {
+            FileType::JS => &format!(r"\.(js|jsx|ts|tsx|mjs|cjs)$"),
+        };
+        Regex::new(regexp_string).unwrap()
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -72,13 +84,6 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn get_regexp_for_file_type(file_type: &FileType) -> Regex {
-    let regexp_string = match file_type {
-        FileType::JS => &format!(r"\.(js|jsx|ts|tsx|mjs|cjs)$"),
-    };
-    Regex::new(regexp_string).unwrap()
-}
-
 fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
     let regexp_string = match file_type {
         FileType::JS => &format!(
@@ -88,13 +93,8 @@ fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
     Regex::new(regexp_string).unwrap()
 }
 
-fn does_file_path_match_type(path: &str, file_type: &FileType) -> bool {
-    let re = get_regexp_for_file_type(file_type);
-    re.is_match(path)
-}
-
-pub fn should_ignore_path(config: &Config, path: &str) -> bool {
-    if does_file_path_match_type(&path, &config.file_type) {
+fn should_ignore_path(config: &Config, path: &str) -> bool {
+    if config.file_type.does_file_path_match_type(&path) {
         return false;
     }
     return true;

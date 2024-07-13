@@ -54,19 +54,6 @@ impl FileType {
             _ => Err("Invalid file type"),
         }
     }
-
-    pub fn does_file_path_match_type(&self, path: &str) -> bool {
-        let re = FileType::get_regexp_for_file_type(self);
-        re.is_match(path)
-    }
-
-    fn get_regexp_for_file_type(&self) -> Regex {
-        let regexp_string = match self {
-            FileType::JS => &r"\.(js|jsx|ts|tsx|mjs|cjs)$".to_string(),
-            FileType::PHP => &r"\.php$".to_string(),
-        };
-        Regex::new(regexp_string).unwrap()
-    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -74,6 +61,14 @@ pub struct SearchResult {
     pub file_path: String,
     pub line_number: usize,
     pub text: String,
+}
+
+fn get_regexp_for_file_type(file_type: &FileType) -> Regex {
+    let regexp_string = match file_type {
+        FileType::JS => &r"\.(js|jsx|ts|tsx|mjs|cjs)$".to_string(),
+        FileType::PHP => &r"\.php$".to_string(),
+    };
+    Regex::new(regexp_string).unwrap()
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
@@ -104,6 +99,7 @@ fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
 
 pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let re = get_regexp_for_query(&config.query, &config.file_type);
+    let file_type_re = get_regexp_for_file_type(&config.file_type);
     let mut results = vec![];
 
     for entry in Walk::new(&config.file_path) {
@@ -115,7 +111,7 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
             Some(p) => p.to_string(),
             None => return Err("Error getting string from path".into()),
         };
-        if !config.file_type.does_file_path_match_type(&path) {
+        if !file_type_re.is_match(&path) {
             continue;
         }
         let search_result = search_file(&re, &path);

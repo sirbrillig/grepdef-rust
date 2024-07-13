@@ -1,4 +1,5 @@
 use clap::Parser;
+use colored::Colorize;
 use ignore::Walk;
 use regex::Regex;
 use std::error::Error;
@@ -78,9 +79,14 @@ pub struct SearchResult {
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     for line in search(&config)? {
         if config.line_number {
-            println!("{}:{}:{}", line.file_path, line.line_number, line.text);
+            println!(
+                "{}:{}:{}",
+                line.file_path.magenta(),
+                line.line_number.to_string().green(),
+                line.text
+            );
         } else {
-            println!("{}:{}", line.file_path, line.text);
+            println!("{}:{}", line.file_path.magenta(), line.text);
         }
     }
     Ok(())

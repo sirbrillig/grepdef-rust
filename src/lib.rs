@@ -126,15 +126,11 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
 
 fn does_file_match_regexp(mut file: &fs::File, re: &Regex) -> bool {
     let mut buf = String::new();
-    loop {
-        let bytes = file.read_to_string(&mut buf);
-        if bytes.unwrap_or(0) == 0 {
-            break false;
-        }
-        if re.is_match(&buf) {
-            break true;
-        }
+    let bytes = file.read_to_string(&mut buf);
+    if bytes.unwrap_or(0) == 0 {
+        return false;
     }
+    re.is_match(&buf)
 }
 
 fn search_file(re: &Regex, file_path: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {

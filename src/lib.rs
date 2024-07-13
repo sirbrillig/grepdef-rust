@@ -3,7 +3,7 @@ use ignore::Walk;
 use regex::Regex;
 use std::error::Error;
 use std::fs;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Read, Seek};
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -121,14 +121,37 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     Ok(results)
 }
 
+fn does_file_match_regexp(mut file: &fs::File, re: &Regex) -> bool {
+    let mut buf = String::new();
+    loop {
+        let bytes = file.read_to_string(&mut buf);
+        if 0 == match bytes {
+            Ok(bytes) => bytes,
+            Err(_) => 0,
+        } {
+            break false;
+        }
+        // If we know the file has a match, stop scanning it and scan it again for the line.
+        break re.is_match(&buf);
+    }
+}
+
 fn search_file(
     query: &str,
     file_type: &FileType,
     file_path: &str,
 ) -> Result<Vec<SearchResult>, Box<dyn Error>> {
-    let file = fs::File::open(file_path)?;
-    let lines = io::BufReader::new(file).lines();
     let re = get_regexp_for_query(query, file_type);
+    let mut file = fs::File::open(file_path)?;
+
+    // Scan the file in big chunks to see if it has what we are looking for. This is more efficient
+    // than going line-by-line on every file since matches should be quite rare.
+    if !does_file_match_regexp(&file, &re) {
+        return Ok(vec![]);
+    }
+
+    file.rewind()?;
+    let lines = io::BufReader::new(file).lines();
     let mut line_counter = 0;
 
     Ok(lines

@@ -132,10 +132,7 @@ fn does_file_match_regexp(mut file: &fs::File, re: &Regex) -> bool {
     let mut buf = String::new();
     loop {
         let bytes = file.read_to_string(&mut buf);
-        if 0 == match bytes {
-            Ok(bytes) => bytes,
-            Err(_) => 0,
-        } {
+        if bytes.unwrap_or(0) == 0 {
             break false;
         }
         if re.is_match(&buf) {
@@ -149,7 +146,7 @@ fn search_file(re: &Regex, file_path: &str) -> Result<Vec<SearchResult>, Box<dyn
 
     // Scan the file in big chunks to see if it has what we are looking for. This is more efficient
     // than going line-by-line on every file since matches should be quite rare.
-    if !does_file_match_regexp(&file, &re) {
+    if !does_file_match_regexp(&file, re) {
         return Ok(vec![]);
     }
 

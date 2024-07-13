@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.9", features = ["derive"] }
+colored = "2.1.0"
 exitcode = "1.1.2"
 ignore = "0.4.22"
 regex = "1.10.5"

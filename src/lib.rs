@@ -164,15 +164,17 @@ fn search_file(
                 return None;
             }
 
+            let text = match line {
+                Ok(line) => line,
+                // If reading the line causes an error (eg: invalid UTF), then skip it by treating
+                // it as empty.
+                Err(_err) => String::from(""),
+            };
+
             Some(SearchResult {
                 file_path: String::from(file_path),
                 line_number: line_counter,
-                text: match line {
-                    Ok(line) => line,
-                    // If reading the line causes an error (eg: invalid UTF), then skip it by treating
-                    // it as empty.
-                    Err(_err) => String::from(""),
-                },
+                text: text.trim().into(),
             })
         })
         .collect())

@@ -153,10 +153,14 @@ fn search_file(re: &Regex, file_path: &str) -> Result<Vec<SearchResult>, Box<dyn
     }
 
     file.rewind()?;
+    Ok(search_file_line_by_line(re, file_path, &file))
+}
+
+fn search_file_line_by_line(re: &Regex, file_path: &str, file: &fs::File) -> Vec<SearchResult> {
     let lines = io::BufReader::new(file).lines();
     let mut line_counter = 0;
 
-    Ok(lines
+    lines
         .filter_map(|line| {
             line_counter += 1;
             if !match &line {
@@ -179,5 +183,5 @@ fn search_file(re: &Regex, file_path: &str) -> Result<Vec<SearchResult>, Box<dyn
                 text: text.trim().into(),
             })
         })
-        .collect())
+        .collect()
 }

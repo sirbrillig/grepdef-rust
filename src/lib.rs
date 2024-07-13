@@ -138,8 +138,9 @@ fn does_file_match_regexp(mut file: &fs::File, re: &Regex) -> bool {
         } {
             break false;
         }
-        // If we know the file has a match, stop scanning it and scan it again for the line.
-        break re.is_match(&buf);
+        if re.is_match(&buf) {
+            break true;
+        }
     }
 }
 

@@ -103,6 +103,7 @@ fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
 }
 
 pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    let re = get_regexp_for_query(&config.query, &config.file_type);
     let mut results = vec![];
 
     for entry in Walk::new(&config.file_path) {
@@ -117,7 +118,7 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         if !config.file_type.does_file_path_match_type(&path) {
             continue;
         }
-        let search_result = search_file(&config.query, &config.file_type, &path);
+        let search_result = search_file(&re, &path);
         match search_result {
             Ok(result_entries) => results.extend(result_entries),
             Err(err) => return Err(err),
@@ -142,12 +143,7 @@ fn does_file_match_regexp(mut file: &fs::File, re: &Regex) -> bool {
     }
 }
 
-fn search_file(
-    query: &str,
-    file_type: &FileType,
-    file_path: &str,
-) -> Result<Vec<SearchResult>, Box<dyn Error>> {
-    let re = get_regexp_for_query(query, file_type);
+fn search_file(re: &Regex, file_path: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let mut file = fs::File::open(file_path)?;
 
     // Scan the file in big chunks to see if it has what we are looking for. This is more efficient

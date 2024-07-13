@@ -50,9 +50,7 @@ impl FileType {
         match file_type_string.as_str() {
             "js" => Ok(FileType::JS),
             "php" => Ok(FileType::PHP),
-            _ => {
-                return Err("Invalid file type");
-            }
+            _ => Err("Invalid file type"),
         }
     }
 
@@ -63,8 +61,8 @@ impl FileType {
 
     fn get_regexp_for_file_type(&self) -> Regex {
         let regexp_string = match self {
-            FileType::JS => &format!(r"\.(js|jsx|ts|tsx|mjs|cjs)$"),
-            FileType::PHP => &format!(r"\.php$"),
+            FileType::JS => &r"\.(js|jsx|ts|tsx|mjs|cjs)$".to_string(),
+            FileType::PHP => &r"\.php$".to_string(),
         };
         Regex::new(regexp_string).unwrap()
     }
@@ -120,7 +118,7 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         }
     }
 
-    return Ok(results);
+    Ok(results)
 }
 
 fn search_file(
@@ -128,7 +126,7 @@ fn search_file(
     file_type: &FileType,
     file_path: &str,
 ) -> Result<Vec<SearchResult>, Box<dyn Error>> {
-    let file = fs::File::open(&file_path)?;
+    let file = fs::File::open(file_path)?;
     let lines = io::BufReader::new(file).lines();
     let re = get_regexp_for_query(query, file_type);
 
@@ -138,7 +136,7 @@ fn search_file(
             file_path: String::from(file_path),
             line_number: index + 1,
             text: match line {
-                Ok(line) => String::from(line),
+                Ok(line) => line,
                 // If reading the line causes an error (eg: invalid UTF), then skip it by treating
                 // it as empty.
                 Err(_err) => String::from(""),

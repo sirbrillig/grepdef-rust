@@ -14,7 +14,7 @@ fn search_returns_matching_js_function_line() {
     }];
     let args = Args {
         query,
-        file_path,
+        file_path: Some(file_path),
         file_type: file_type_string,
         line_number: true,
     };
@@ -40,7 +40,7 @@ fn search_returns_expected_line_number_js(
     let file_path = String::from("./tests/fixtures/js-fixture.js");
     let args = Args {
         query,
-        file_path,
+        file_path: Some(file_path),
         file_type: file_type_string,
         line_number: true,
     };
@@ -68,7 +68,7 @@ fn search_returns_expected_line_number_jsx(
     let file_path = String::from("./tests/fixtures/jsx-fixture.jsx");
     let args = Args {
         query,
-        file_path,
+        file_path: Some(file_path),
         file_type: file_type_string,
         line_number: true,
     };
@@ -100,7 +100,7 @@ fn search_returns_expected_line_number_ts(
     let file_path = String::from("./tests/fixtures/ts-fixture.ts");
     let args = Args {
         query,
-        file_path,
+        file_path: Some(file_path),
         file_type: file_type_string,
         line_number: true,
     };
@@ -131,7 +131,36 @@ fn search_returns_matching_js_function_line_for_recursive() {
     ];
     let args = Args {
         query,
-        file_path,
+        file_path: Some(file_path),
+        file_type: file_type_string,
+        line_number: true,
+    };
+    let config = Config::new(args).expect("Incorrect config for test");
+    let actual = search(&config).expect("Search failed for test");
+    assert!(actual.iter().all(|item| expected.contains(item)));
+    assert!(expected.iter().all(|item| actual.contains(item)));
+}
+
+#[rstest]
+fn search_returns_matching_js_function_line_for_recursive_default_path() {
+    let query = String::from("parseQuery");
+    let line_number = 7;
+    let file_type_string = String::from("js");
+    let expected = vec![
+        SearchResult {
+            file_path: String::from("./tests/fixtures/js-fixture.js"),
+            line_number,
+            text: String::from("function parseQuery() {"),
+        },
+        SearchResult {
+            file_path: String::from("./tests/fixtures/jsx-fixture.jsx"),
+            line_number,
+            text: String::from("function parseQuery() {"),
+        },
+    ];
+    let args = Args {
+        query,
+        file_path: None,
         file_type: file_type_string,
         line_number: true,
     };
@@ -162,7 +191,7 @@ fn search_returns_matching_ts_function_line_for_recursive() {
     ];
     let args = Args {
         query,
-        file_path,
+        file_path: Some(file_path),
         file_type: file_type_string,
         line_number: true,
     };
@@ -185,7 +214,7 @@ fn search_returns_matching_php_function_line() {
     }];
     let args = Args {
         query,
-        file_path,
+        file_path: Some(file_path),
         file_type: file_type_string,
         line_number: true,
     };
@@ -211,7 +240,7 @@ fn search_returns_expected_line_number_php(
     let file_path = String::from("./tests/fixtures/php-fixture.php");
     let args = Args {
         query,
-        file_path,
+        file_path: Some(file_path),
         file_type: file_type_string,
         line_number: true,
     };
@@ -235,7 +264,7 @@ fn search_returns_matching_php_function_line_for_recursive() {
     }];
     let args = Args {
         query,
-        file_path,
+        file_path: Some(file_path),
         file_type: file_type_string,
         line_number: true,
     };

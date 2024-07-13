@@ -12,7 +12,7 @@ pub struct Args {
     pub query: String,
 
     /// The file path(s) to search
-    pub file_path: String,
+    pub file_path: Option<String>,
 
     /// The file type to search (js, ts, php)
     #[arg(short = 't', long = "type")]
@@ -34,7 +34,7 @@ impl Config {
     pub fn new(args: Args) -> Result<Config, &'static str> {
         Ok(Config {
             query: args.query,
-            file_path: args.file_path,
+            file_path: args.file_path.unwrap_or(".".into()),
             file_type: FileType::from_string(args.file_type)?,
             line_number: args.line_number,
         })

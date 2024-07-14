@@ -1,10 +1,12 @@
 use clap::Parser;
 use colored::Colorize;
 use ignore::Walk;
+use memchr::memmem;
 use regex::Regex;
 use std::error::Error;
 use std::fs;
 use std::io::{self, BufRead, Read, Seek};
+use strum_macros::EnumString;
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -21,6 +23,18 @@ pub struct Args {
     /// Show line numbers (starting with 1).
     #[arg(short = 'n', long = "line-number")]
     pub line_number: bool,
+
+    /// (Advanced) The searching method
+    #[arg(long = "search-method")]
+    pub search_method: Option<SearchMethod>,
+}
+
+#[derive(clap::ValueEnum, Clone, Default, Debug, EnumString, PartialEq)]
+pub enum SearchMethod {
+    #[default]
+    PrescanRegex,
+    PrescanMemmem,
+    NoPrescan,
 }
 
 pub struct Config {
@@ -28,6 +42,7 @@ pub struct Config {
     file_path: String,
     file_type: FileType,
     line_number: bool,
+    search_method: SearchMethod,
 }
 
 impl Config {
@@ -37,6 +52,7 @@ impl Config {
             file_path: args.file_path.unwrap_or(".".into()),
             file_type: FileType::from_string(args.file_type)?,
             line_number: args.line_number,
+            search_method: args.search_method.unwrap_or_default(),
         })
     }
 }
@@ -114,7 +130,7 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         if !file_type_re.is_match(&path) {
             continue;
         }
-        let search_result = search_file(&re, &path);
+        let search_result = search_file(&re, &path, config);
         match search_result {
             Ok(result_entries) => results.extend(result_entries),
             Err(err) => return Err(err),
@@ -133,12 +149,40 @@ fn does_file_match_regexp(mut file: &fs::File, re: &Regex) -> bool {
     re.is_match(&buf)
 }
 
-fn search_file(re: &Regex, file_path: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+fn does_file_match_query(mut file: &fs::File, query: &str) -> bool {
+    let mut full: Vec<u8> = vec![];
+    let mut buf = [0u8; 2048];
+    let finder = memmem::Finder::new(query);
+    loop {
+        let bytes = file.read(&mut buf);
+        if bytes.unwrap_or(0) == 0 {
+            break false;
+        }
+        if full.contains(&0xA) {
+            let mut split_full = full.rsplit(|&b| b == b'\n');
+            full = split_full.next().unwrap().to_vec();
+        }
+        full.extend(buf);
+        if finder.find(&full).is_some() {
+            break true;
+        }
+    }
+}
+
+fn search_file(
+    re: &Regex,
+    file_path: &str,
+    config: &Config,
+) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let mut file = fs::File::open(file_path)?;
 
     // Scan the file in big chunks to see if it has what we are looking for. This is more efficient
     // than going line-by-line on every file since matches should be quite rare.
-    if !does_file_match_regexp(&file, re) {
+    if match config.search_method {
+        SearchMethod::PrescanRegex => !does_file_match_regexp(&file, re),
+        SearchMethod::PrescanMemmem => !does_file_match_query(&file, &config.query),
+        SearchMethod::NoPrescan => false,
+    } {
         return Ok(vec![]);
     }
 

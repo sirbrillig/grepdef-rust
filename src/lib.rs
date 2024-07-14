@@ -6,6 +6,7 @@ use regex::Regex;
 use std::error::Error;
 use std::fs;
 use std::io::{self, BufRead, Read, Seek};
+use strum_macros::Display;
 use strum_macros::EnumString;
 
 #[derive(Parser, Debug)]
@@ -24,12 +25,16 @@ pub struct Args {
     #[arg(short = 'n', long = "line-number")]
     pub line_number: bool,
 
+    /// (Advanced) Print debugging information
+    #[arg(long = "debug")]
+    pub debug: bool,
+
     /// (Advanced) The searching method
     #[arg(long = "search-method")]
     pub search_method: Option<SearchMethod>,
 }
 
-#[derive(clap::ValueEnum, Clone, Default, Debug, EnumString, PartialEq)]
+#[derive(clap::ValueEnum, Clone, Default, Debug, EnumString, PartialEq, Display)]
 pub enum SearchMethod {
     #[default]
     PrescanRegex,
@@ -42,6 +47,7 @@ pub struct Config {
     file_path: String,
     file_type: FileType,
     line_number: bool,
+    debug: bool,
     search_method: SearchMethod,
 }
 
@@ -52,6 +58,7 @@ impl Config {
             file_path: args.file_path.unwrap_or(".".into()),
             file_type: FileType::from_string(args.file_type)?,
             line_number: args.line_number,
+            debug: args.debug,
             search_method: args.search_method.unwrap_or_default(),
         })
     }
@@ -169,24 +176,37 @@ fn does_file_match_query(mut file: &fs::File, query: &str) -> bool {
     }
 }
 
+fn debug(config: &Config, output: &str) {
+    if config.debug {
+        println!("{}", output.yellow());
+    }
+}
+
 fn search_file(
     re: &Regex,
     file_path: &str,
     config: &Config,
 ) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    debug(config, format!("Scanning file {}", file_path).as_str());
     let mut file = fs::File::open(file_path)?;
 
     // Scan the file in big chunks to see if it has what we are looking for. This is more efficient
     // than going line-by-line on every file since matches should be quite rare.
+    debug(
+        config,
+        format!("  Using search-method {}", config.search_method).as_str(),
+    );
     if match config.search_method {
         SearchMethod::PrescanRegex => !does_file_match_regexp(&file, re),
         SearchMethod::PrescanMemmem => !does_file_match_query(&file, &config.query),
         SearchMethod::NoPrescan => false,
     } {
+        debug(config, "  Presearch found no match; skipping");
         return Ok(vec![]);
     }
 
     file.rewind()?;
+    debug(config, "  Presearch was successful; searching for line");
     Ok(search_file_line_by_line(re, file_path, &file))
 }
 

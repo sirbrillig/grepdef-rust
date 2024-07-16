@@ -6,6 +6,7 @@ use regex::Regex;
 use std::error::Error;
 use std::fs;
 use std::io::{self, BufRead, Read, Seek};
+use std::thread;
 use strum_macros::Display;
 use strum_macros::EnumString;
 
@@ -42,6 +43,7 @@ pub enum SearchMethod {
     NoPrescan,
 }
 
+#[derive(Clone)]
 pub struct Config {
     query: String,
     file_path: String,
@@ -64,6 +66,7 @@ impl Config {
     }
 }
 
+#[derive(Clone)]
 pub enum FileType {
     JS,
     PHP,
@@ -124,6 +127,7 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let re = get_regexp_for_query(&config.query, &config.file_type);
     let file_type_re = get_regexp_for_file_type(&config.file_type);
     let mut results = vec![];
+    let mut children = vec![];
 
     for entry in Walk::new(&config.file_path) {
         let path = entry?.into_path();
@@ -137,11 +141,17 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         if !file_type_re.is_match(&path) {
             continue;
         }
-        let search_result = search_file(&re, &path, config);
-        match search_result {
-            Ok(result_entries) => results.extend(result_entries),
-            Err(err) => return Err(err),
-        }
+
+        let re1 = re.clone();
+        let path1 = path.clone();
+        let config1 = config.clone();
+        children.push(thread::spawn(move || search_file(&re1, &path1, &config1)))
+    }
+
+    for child in children {
+        let result = child.join();
+        let search_result = result.unwrap_or(vec![]);
+        results.extend(search_result);
     }
 
     Ok(results)
@@ -182,32 +192,36 @@ fn debug(config: &Config, output: &str) {
     }
 }
 
-fn search_file(
-    re: &Regex,
-    file_path: &str,
-    config: &Config,
-) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+fn search_file(re: &Regex, file_path: &str, config: &Config) -> Vec<SearchResult> {
     debug(config, format!("Scanning file {}", file_path).as_str());
-    let mut file = fs::File::open(file_path)?;
+    let file = fs::File::open(file_path);
 
-    // Scan the file in big chunks to see if it has what we are looking for. This is more efficient
-    // than going line-by-line on every file since matches should be quite rare.
-    debug(
-        config,
-        format!("  Using search-method {}", config.search_method).as_str(),
-    );
-    if match config.search_method {
-        SearchMethod::PrescanRegex => !does_file_match_regexp(&file, re),
-        SearchMethod::PrescanMemmem => !does_file_match_query(&file, &config.query),
-        SearchMethod::NoPrescan => false,
-    } {
-        debug(config, "  Presearch found no match; skipping");
-        return Ok(vec![]);
+    match file {
+        Ok(mut file) => {
+            // Scan the file in big chunks to see if it has what we are looking for. This is more efficient
+            // than going line-by-line on every file since matches should be quite rare.
+            debug(
+                config,
+                format!("  Using search-method {}", config.search_method).as_str(),
+            );
+            if match config.search_method {
+                SearchMethod::PrescanRegex => !does_file_match_regexp(&file, re),
+                SearchMethod::PrescanMemmem => !does_file_match_query(&file, &config.query),
+                SearchMethod::NoPrescan => false,
+            } {
+                debug(config, "  Presearch found no match; skipping");
+                return vec![];
+            }
+
+            let rewind_result = file.rewind();
+            if rewind_result.is_err() {
+                return vec![];
+            }
+            debug(config, "  Presearch was successful; searching for line");
+            search_file_line_by_line(re, file_path, &file)
+        }
+        Err(_) => return vec![],
     }
-
-    file.rewind()?;
-    debug(config, "  Presearch was successful; searching for line");
-    Ok(search_file_line_by_line(re, file_path, &file))
 }
 
 fn search_file_line_by_line(re: &Regex, file_path: &str, file: &fs::File) -> Vec<SearchResult> {

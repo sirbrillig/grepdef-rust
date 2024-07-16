@@ -8,6 +8,7 @@ fn make_args(query: String, file_path: Option<String>, file_type_string: String)
         file_type: file_type_string,
         line_number: true,
         search_method: None,
+        debug: false,
     }
 }
 

@@ -1,4 +1,4 @@
-use grepdef_rust::{search, Args, Config, SearchResult};
+use grepdef_rust::{search, Args, Config, FileType, SearchMethod, SearchResult};
 use rstest::rstest;
 
 fn make_args(query: String, file_path: Option<String>, file_type_string: Option<String>) -> Args {
@@ -17,10 +17,33 @@ fn make_args(query: String, file_path: Option<String>, file_type_string: Option<
 }
 
 #[rstest]
+fn search_returns_matching_js_function_line_with_raw_config() {
+    let file_path = String::from("./tests/fixtures/js-fixture.js");
+    let query = String::from("parseQuery");
+    let line_number = Some(7);
+    let expected = vec![SearchResult {
+        file_path: file_path.clone(),
+        line_number,
+        text: String::from("function parseQuery() {"),
+    }];
+    let config = Config {
+        query,
+        file_paths: vec![file_path],
+        file_type: FileType::JS,
+        line_number: true,
+        debug: false,
+        no_color: false,
+        search_method: SearchMethod::default(),
+    };
+    let actual = search(&config).expect("Search failed for test");
+    assert_eq!(expected, actual);
+}
+
+#[rstest]
 fn search_returns_matching_js_function_line() {
     let file_path = String::from("./tests/fixtures/js-fixture.js");
     let query = String::from("parseQuery");
-    let line_number = 7;
+    let line_number = Some(7);
     let file_type_string = String::from("js");
     let expected = vec![SearchResult {
         file_path: file_path.clone(),
@@ -37,7 +60,7 @@ fn search_returns_matching_js_function_line() {
 fn search_returns_matching_js_function_line_with_two_files() {
     let file_path = String::from("./tests/fixtures/js-fixture.js ./tests/fixtures/php-fixture.php");
     let query = String::from("parseQuery");
-    let line_number = 7;
+    let line_number = Some(7);
     let file_type_string = String::from("js");
     let expected = vec![SearchResult {
         file_path: String::from("./tests/fixtures/js-fixture.js"),
@@ -54,7 +77,7 @@ fn search_returns_matching_js_function_line_with_two_files() {
 fn search_returns_matching_js_function_line_with_one_file_one_directory_matching_on_directory() {
     let file_path = String::from("./tests/fixtures/ ./tests/fixtures/ignored-fixture.js");
     let query = String::from("parseQuery");
-    let line_number = 6;
+    let line_number = Some(6);
     let file_type_string = String::from("php");
     let expected = vec![SearchResult {
         file_path: String::from("./tests/fixtures/php-fixture.php"),
@@ -71,7 +94,7 @@ fn search_returns_matching_js_function_line_with_one_file_one_directory_matching
 fn search_returns_matching_js_function_line_with_one_file_one_directory_matching_on_file() {
     let file_path = String::from("./src/ ./tests/fixtures/js-fixture.js");
     let query = String::from("parseQuery");
-    let line_number = 7;
+    let line_number = Some(7);
     let file_type_string = String::from("js");
     let expected = vec![SearchResult {
         file_path: String::from("./tests/fixtures/js-fixture.js"),
@@ -88,7 +111,7 @@ fn search_returns_matching_js_function_line_with_one_file_one_directory_matching
 fn search_returns_matching_js_function_line_guessing_file_type() {
     let file_path = String::from("./tests/fixtures/js-fixture.js");
     let query = String::from("parseQuery");
-    let line_number = 7;
+    let line_number = Some(7);
     let expected = vec![SearchResult {
         file_path: file_path.clone(),
         line_number,
@@ -114,7 +137,7 @@ fn search_returns_matching_js_function_line_guessing_file_type() {
 fn search_returns_matching_js_function_line_with_filetype_alias(#[case] file_type_string: String) {
     let file_path = String::from("./tests/fixtures/js-fixture.js");
     let query = String::from("parseQuery");
-    let line_number = 7;
+    let line_number = Some(7);
     let expected = vec![SearchResult {
         file_path: file_path.clone(),
         line_number,
@@ -146,7 +169,7 @@ fn search_returns_expected_line_number_js(
     let actual = search(&config).expect("Search failed for test");
     assert_eq!(1, actual.len());
     let first_actual = actual.get(0).expect("Search failed for test");
-    assert_eq!(line_number, first_actual.line_number);
+    assert_eq!(line_number, first_actual.line_number.unwrap());
 }
 
 #[rstest]
@@ -169,7 +192,7 @@ fn search_returns_expected_line_number_jsx(
     let actual = search(&config).expect("Search failed for test");
     assert_eq!(1, actual.len());
     let first_actual = actual.get(0).expect("Search failed for test");
-    assert_eq!(line_number, first_actual.line_number);
+    assert_eq!(line_number, first_actual.line_number.unwrap());
 }
 
 #[rstest]
@@ -196,14 +219,14 @@ fn search_returns_expected_line_number_ts(
     let actual = search(&config).expect("Search failed for test");
     assert_eq!(1, actual.len());
     let first_actual = actual.get(0).expect("Search failed for test");
-    assert_eq!(line_number, first_actual.line_number);
+    assert_eq!(line_number, first_actual.line_number.unwrap());
 }
 
 #[rstest]
 fn search_returns_matching_js_function_line_for_recursive() {
     let file_path = String::from("./tests");
     let query = String::from("parseQuery");
-    let line_number = 7;
+    let line_number = Some(7);
     let file_type_string = String::from("js");
     let expected = vec![
         SearchResult {
@@ -227,7 +250,7 @@ fn search_returns_matching_js_function_line_for_recursive() {
 #[rstest]
 fn search_returns_matching_js_function_line_for_recursive_default_path() {
     let query = String::from("parseQuery");
-    let line_number = 7;
+    let line_number = Some(7);
     let file_type_string = String::from("js");
     let expected = vec![
         SearchResult {
@@ -252,7 +275,7 @@ fn search_returns_matching_js_function_line_for_recursive_default_path() {
 fn search_returns_matching_ts_function_line_for_recursive() {
     let file_path = String::from("./tests");
     let query = String::from("parseQueryTS");
-    let line_number = 7;
+    let line_number = Some(7);
     // Note that the type is still JS
     let file_type_string = String::from("js");
     let expected = vec![
@@ -278,7 +301,7 @@ fn search_returns_matching_ts_function_line_for_recursive() {
 fn search_returns_matching_php_function_line() {
     let file_path = String::from("./tests/fixtures/php-fixture.php");
     let query = String::from("parseQuery");
-    let line_number = 6;
+    let line_number = Some(6);
     let file_type_string = String::from("php");
     let expected = vec![SearchResult {
         file_path: file_path.clone(),
@@ -295,7 +318,7 @@ fn search_returns_matching_php_function_line() {
 fn search_returns_matching_php_function_line_guessing_file_type_from_filename() {
     let file_path = String::from("./tests/fixtures/php-fixture.php");
     let query = String::from("parseQuery");
-    let line_number = 6;
+    let line_number = Some(6);
     let expected = vec![SearchResult {
         file_path: file_path.clone(),
         line_number,
@@ -311,7 +334,7 @@ fn search_returns_matching_php_function_line_guessing_file_type_from_filename() 
 fn search_returns_matching_php_function_line_guessing_file_type_from_directory() {
     let file_path = String::from("./tests/fixtures/only-php/other-php-fixture.php");
     let query = String::from("otherPhpFunction");
-    let line_number = 3;
+    let line_number = Some(3);
     let expected = vec![SearchResult {
         file_path: file_path.clone(),
         line_number,
@@ -343,14 +366,14 @@ fn search_returns_expected_line_number_php(
     let actual = search(&config).expect("Search failed for test");
     assert_eq!(1, actual.len());
     let first_actual = actual.get(0).expect("Search failed for test");
-    assert_eq!(line_number, first_actual.line_number);
+    assert_eq!(line_number, first_actual.line_number.unwrap());
 }
 
 #[rstest]
 fn search_returns_matching_php_function_line_for_recursive() {
     let file_path = String::from("./tests");
     let query = String::from("parseQuery");
-    let line_number = 6;
+    let line_number = Some(6);
     let file_type_string = String::from("php");
     let expected = vec![SearchResult {
         file_path: String::from("./tests/fixtures/php-fixture.php"),

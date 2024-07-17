@@ -1,3 +1,56 @@
+//! Quick search for symbol definitions in various programming languages
+//!
+//! Currently this supports JS (or TypeScript) and PHP.
+//!
+//! This can be used like "Go to definition" in an IDE, except that instead of using a language
+//! server, it just searches for the definition using text parsing. This is less accurate but often
+//! faster in projects with lots of files or where a language server won't work or hasn't yet
+//! started.
+//!
+//! GrepDef since v2 is written in Rust and is designed to be extremely fast.
+//!
+//! This can also be used as a library crate for other Rust programs.
+//!
+//! # Example
+//!
+//! The syntax of the CLI is similar to that of `grep` or `ripgrep`: first put the symbol you want
+//! to search for (eg: a function name, class name, etc.) and then list the file(s) or directories
+//! over which you want to search.
+//!
+//! ```text
+//! $ grepdef parseQuery ./src
+//! // ./src/queries.js:function parseQuery {
+//! ```
+//!
+//! Just like `grep`, you can add the `-n` option to include line numbers.
+//!
+//! ```text
+//! $ grepdef -n parseQuery ./src
+//! // ./src/queries.js:17:function parseQuery {
+//! ```
+//!
+//! The search will be faster if you specify what type of file you are searching for using the
+//! `--type` option.
+//!
+//! ```text
+//! $ grepdef --type js -n parseQuery ./src
+//! // ./src/queries.js:17:function parseQuery {
+//! ```
+//!
+//! To use the crate from other Rust code, use the `search()` function.
+//!
+//! ```
+//! use grepdef_rust::{search, Args, Config};
+//! let config = Config::new(Args {
+//!     query: String::from("parseQuery"),
+//!     ..Args::default()
+//!     })
+//!     .unwrap();
+//! for result in search(&config).unwrap() {
+//!     println!("{}", result.to_grep());
+//! }
+//! ```
+
 use clap::Parser;
 use colored::Colorize;
 use ignore::Walk;
@@ -13,19 +66,34 @@ use std::thread;
 use strum_macros::Display;
 use strum_macros::EnumString;
 
-#[derive(Parser, Debug)]
+/// The command-line arguments to be turned into a `Config`
+///
+/// Use this instead of `Config` directly if you want to benefit from optional parameters and
+/// auto-detection.
+///
+/// Can be passed to `Config::new()`.
+///
+/// The only required property is `query`.
+///
+/// # Example
+///
+/// ```
+/// use grepdef_rust::{Config, Args};
+/// let config = Config::new(Args { query: String::from("parseQuery"), line_number: true, ..Args::default() });
+/// ```
+#[derive(Parser, Debug, Default)]
 pub struct Args {
-    /// The symbol name to search for
+    /// (Required) The symbol name (function, class, etc.) to search for
     pub query: String,
 
-    /// The file path(s) to search
+    /// The file path(s) to search; recursively searches directories and respects .gitignore
     pub file_path: Option<Vec<String>>,
 
-    /// The file type to search (js, php); will guess if not set
+    /// The file type to search (js, php); will guess if not set but this is slower
     #[arg(short = 't', long = "type")]
     pub file_type: Option<String>,
 
-    /// Show line numbers (starting with 1)
+    /// Show line numbers of matches if set
     #[arg(short = 'n', long = "line-number")]
     pub line_number: bool,
 
@@ -42,6 +110,7 @@ pub struct Args {
     pub search_method: Option<SearchMethod>,
 }
 
+/// (Advanced) The type of underlying search algorithm to use
 #[derive(clap::ValueEnum, Clone, Default, Debug, EnumString, PartialEq, Display)]
 pub enum SearchMethod {
     #[default]
@@ -50,15 +119,26 @@ pub enum SearchMethod {
     NoPrescan,
 }
 
+/// The configuration passed to the `search()` function
+///
+/// The easiest way to use this is to first create an `Args` object and pass that to
+/// `Config::new()` to take advantage of optional properties and auto-detection.
+///
+/// # Example
+///
+/// ```
+/// use grepdef_rust::{Config, Args};
+/// let config = Config::new(Args { query: String::from("parseQuery"), line_number: true, ..Args::default() });
+/// ```
 #[derive(Clone, Debug)]
 pub struct Config {
-    query: String,
-    file_paths: Vec<String>,
-    file_type: FileType,
-    line_number: bool,
-    debug: bool,
-    no_color: bool,
-    search_method: SearchMethod,
+    pub query: String,
+    pub file_paths: Vec<String>,
+    pub file_type: FileType,
+    pub line_number: bool,
+    pub debug: bool,
+    pub no_color: bool,
+    pub search_method: SearchMethod,
 }
 
 impl Config {
@@ -89,6 +169,10 @@ impl Config {
     }
 }
 
+/// The supported file types to search
+///
+/// You can turn a string into a `FileType` using `FileType::from_string()` which also supports
+/// type aliases like `javascript`, `javascriptreact`, or `typescript.tsx`.
 #[derive(Clone, Debug)]
 pub enum FileType {
     JS,
@@ -96,6 +180,10 @@ pub enum FileType {
 }
 
 impl FileType {
+    /// Turn a string into a `FileType`
+    ///
+    /// You can turn a string into a `FileType` using `FileType::from_string()` which also supports
+    /// type aliases like `javascript`, `javascriptreact`, or `typescript.tsx`.
     pub fn from_string(file_type_string: String) -> Result<FileType, &'static str> {
         match file_type_string.as_str() {
             "js" => Ok(FileType::JS),
@@ -114,18 +202,54 @@ impl FileType {
     }
 }
 
+/// A result from calling `search()`
+///
+/// The `line_number` will be set only if `Config.line_number` is true when calling `search()`.
+///
+/// See `to_grep()` as the most common formatting output.
 #[derive(Debug, PartialEq, Clone)]
 pub struct SearchResult {
+    /// The path to the file containing the symbol definition
     pub file_path: String,
-    pub line_number: usize,
+
+    /// The line number of the symbol definition in the file
+    pub line_number: Option<usize>,
+
+    /// The symbol definition line
     pub text: String,
+}
+
+impl SearchResult {
+    /// Return a formatted string for output in the "grep" format
+    ///
+    /// That is, either `file path:text on line` or, if `Config.line_number` is true,
+    /// `file path:line number:text on line`.
+    ///
+    /// # Example
+    ///
+    /// If `Config.line_number` is true,
+    ///
+    /// ```text
+    /// ./src/queries.js:17:function parseQuery {
+    /// ```
+    pub fn to_grep(&self) -> String {
+        match self.line_number {
+            Some(line_number) => format!(
+                "{}:{}:{}",
+                self.file_path.magenta(),
+                line_number.to_string().green(),
+                self.text
+            ),
+            None => format!("{}:{}", self.file_path.magenta(), self.text),
+        }
+    }
 }
 
 fn guess_file_type(file_paths: &Vec<String>) -> Result<FileType, &'static str> {
     for file_path in file_paths {
         let guess = guess_file_type_from_file_path(file_path);
-        if guess.is_some() {
-            return Ok(guess.unwrap());
+        if let Some(value) = guess {
+            return Ok(value);
         }
     }
     Err("Unable to guess file type. Try using --type.")
@@ -153,7 +277,7 @@ fn guess_file_type_from_file_path(file_path: &str) -> Option<FileType> {
             return Some(FileType::PHP);
         }
     }
-    return None;
+    None
 }
 
 fn get_regexp_for_file_type(file_type: &FileType) -> Regex {
@@ -164,21 +288,15 @@ fn get_regexp_for_file_type(file_type: &FileType) -> Regex {
     Regex::new(regexp_string).expect("Could not create regex for file extension")
 }
 
+/// Run the CLI script
+///
+/// This should not be used manually by other crates. See `search()` instead.
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     if config.no_color {
         colored::control::set_override(false);
     }
     for line in search(&config)? {
-        if config.line_number {
-            println!(
-                "{}:{}:{}",
-                line.file_path.magenta(),
-                line.line_number.to_string().green(),
-                line.text
-            );
-        } else {
-            println!("{}:{}", line.file_path.magenta(), line.text);
-        }
+        println!("{}", line.to_grep());
     }
     Ok(())
 }
@@ -293,6 +411,24 @@ impl Drop for ThreadPool {
     }
 }
 
+/// Search for a symbol definition
+///
+/// This is the main API of this crate.
+///
+/// # Example
+///
+/// ```
+/// use grepdef_rust::{search, Args, Config};
+/// let config = Config::new(Args {
+//     query: String::from("parseQuery"),
+///     line_number: true,
+///     ..Args::default()
+/// })
+/// .unwrap();
+/// for result in search(&config).unwrap() {
+///     println!("{}", result.to_grep());
+/// }
+/// ```
 pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let re = get_regexp_for_query(&config.query, &config.file_type);
     let file_type_re = get_regexp_for_file_type(&config.file_type);
@@ -413,7 +549,7 @@ where
                 return;
             }
             debug(config, "  Presearch was successful; searching for line");
-            callback(search_file_line_by_line(re, file_path, &file));
+            callback(search_file_line_by_line(re, file_path, &file, config));
         }
         Err(_) => {
             callback(vec![]);
@@ -421,7 +557,12 @@ where
     }
 }
 
-fn search_file_line_by_line(re: &Regex, file_path: &str, file: &fs::File) -> Vec<SearchResult> {
+fn search_file_line_by_line(
+    re: &Regex,
+    file_path: &str,
+    file: &fs::File,
+    config: &Config,
+) -> Vec<SearchResult> {
     let lines = io::BufReader::new(file).lines();
     let mut line_counter = 0;
 
@@ -444,7 +585,11 @@ fn search_file_line_by_line(re: &Regex, file_path: &str, file: &fs::File) -> Vec
 
             Some(SearchResult {
                 file_path: String::from(file_path),
-                line_number: line_counter,
+                line_number: if config.line_number {
+                    Some(line_counter)
+                } else {
+                    None
+                },
                 text: text.trim().into(),
             })
         })

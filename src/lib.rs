@@ -97,7 +97,7 @@ fn get_regexp_for_file_type(file_type: &FileType) -> Regex {
         FileType::JS => &r"\.(js|jsx|ts|tsx|mjs|cjs)$".to_string(),
         FileType::PHP => &r"\.php$".to_string(),
     };
-    Regex::new(regexp_string).unwrap()
+    Regex::new(regexp_string).expect("Could not create regex for file extension")
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
@@ -123,7 +123,7 @@ fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
         ),
         FileType::PHP => &format!(r"\b(function|class|trait|interface|enum) {query}\b"),
     };
-    Regex::new(regexp_string).unwrap()
+    Regex::new(regexp_string).expect("Could not create regex for file type query")
 }
 
 type WorkerReceiver = Arc<Mutex<mpsc::Receiver<Job>>>;
@@ -138,7 +138,10 @@ impl Worker {
     pub fn new(id: usize, receiver: WorkerReceiver) -> Worker {
         let thread = thread::spawn(move || loop {
             // recv will block until the next job is sent.
-            let message = receiver.lock().unwrap().recv();
+            let message = receiver
+                .lock()
+                .expect("Worker thread could not get message from main thread")
+                .recv();
 
             match message {
                 Ok(job) => {
@@ -196,7 +199,11 @@ impl ThreadPool {
         F: FnOnce() + Send + 'static,
     {
         let job = Box::new(f);
-        self.sender.as_ref().unwrap().send(job).unwrap();
+        self.sender
+            .as_ref()
+            .expect("Executing search thread failed")
+            .send(job)
+            .expect("Unable to send data to search thread");
     }
 
     pub fn wait_for_all_jobs_and_stop(&mut self) {
@@ -207,7 +214,7 @@ impl ThreadPool {
         for worker in &mut self.workers {
             // Collect each thread which all should have stopped working by now.
             if let Some(thread) = worker.thread.take() {
-                thread.join().unwrap();
+                thread.join().expect("Unable to close thread");
             }
         }
     }
@@ -250,7 +257,10 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
                 &path1,
                 &config1,
                 move |file_results: Vec<SearchResult>| {
-                    results1.lock().unwrap().extend(file_results);
+                    results1
+                        .lock()
+                        .expect("Unable to collect search data from thread")
+                        .extend(file_results);
                 },
             );
         })
@@ -260,7 +270,12 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     pool.wait_for_all_jobs_and_stop();
     debug(&config, "Searchers complete");
 
-    Ok(Arc::try_unwrap(results).unwrap().into_inner().unwrap())
+    let results = Arc::into_inner(results)
+        .expect("Unable to collect search results from threads: reference counter failed");
+    let results = results
+        .into_inner()
+        .expect("Unable to collect search results from threads: mutex failed");
+    Ok(results)
 }
 
 fn does_file_match_regexp(mut file: &fs::File, re: &Regex) -> bool {
@@ -283,7 +298,7 @@ fn does_file_match_query(mut file: &fs::File, query: &str) -> bool {
         }
         if full.contains(&0xA) {
             let mut split_full = full.rsplit(|&b| b == b'\n');
-            full = split_full.next().unwrap().to_vec();
+            full = split_full.next().unwrap_or(&[0u8, 1]).to_vec();
         }
         full.extend(buf);
         if finder.find(&full).is_some() {

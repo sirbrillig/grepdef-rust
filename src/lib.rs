@@ -50,7 +50,7 @@ pub enum SearchMethod {
     NoPrescan,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Config {
     query: String,
     file_paths: Vec<String>,
@@ -75,7 +75,7 @@ impl Config {
             Some(file_type_string) => FileType::from_string(file_type_string)?,
             None => guess_file_type(&file_paths)?,
         };
-        Ok(Config {
+        let config = Config {
             query: args.query,
             file_paths,
             file_type,
@@ -83,11 +83,13 @@ impl Config {
             debug: args.debug,
             no_color: args.no_color,
             search_method: args.search_method.unwrap_or_default(),
-        })
+        };
+        debug(&config, format!("Created config {:?}", config).as_str());
+        Ok(config)
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum FileType {
     JS,
     PHP,
@@ -126,17 +128,30 @@ fn guess_file_type(file_paths: &Vec<String>) -> Result<FileType, &'static str> {
             return Ok(guess.unwrap());
         }
     }
-    Err("Unable to determine file type")
+    Err("Unable to guess file type. Try using --type.")
 }
 
 fn guess_file_type_from_file_path(file_path: &str) -> Option<FileType> {
     let js_regex = get_regexp_for_file_type(&FileType::JS);
     let php_regex = get_regexp_for_file_type(&FileType::PHP);
-    if js_regex.is_match(file_path) {
-        return Some(FileType::JS);
-    }
-    if php_regex.is_match(file_path) {
-        return Some(FileType::PHP);
+    for entry in Walk::new(file_path) {
+        let path = match entry {
+            Ok(path) => path.into_path(),
+            Err(_) => continue,
+        };
+        if path.is_dir() {
+            continue;
+        }
+        let path = match path.to_str() {
+            Some(p) => p.to_string(),
+            None => String::from(""),
+        };
+        if js_regex.is_match(&path) {
+            return Some(FileType::JS);
+        }
+        if php_regex.is_match(&path) {
+            return Some(FileType::PHP);
+        }
     }
     return None;
 }

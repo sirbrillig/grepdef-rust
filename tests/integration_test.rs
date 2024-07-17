@@ -292,7 +292,7 @@ fn search_returns_matching_php_function_line() {
 }
 
 #[rstest]
-fn search_returns_matching_php_function_line_guessing_file_type() {
+fn search_returns_matching_php_function_line_guessing_file_type_from_filename() {
     let file_path = String::from("./tests/fixtures/php-fixture.php");
     let query = String::from("parseQuery");
     let line_number = 6;
@@ -302,6 +302,22 @@ fn search_returns_matching_php_function_line_guessing_file_type() {
         text: String::from("function parseQuery() {"),
     }];
     let args = make_args(query, Some(file_path), None);
+    let config = Config::new(args).expect("Incorrect config for test");
+    let actual = search(&config).expect("Search failed for test");
+    assert_eq!(expected, actual);
+}
+
+#[rstest]
+fn search_returns_matching_php_function_line_guessing_file_type_from_directory() {
+    let file_path = String::from("./tests/fixtures/only-php/other-php-fixture.php");
+    let query = String::from("otherPhpFunction");
+    let line_number = 3;
+    let expected = vec![SearchResult {
+        file_path: file_path.clone(),
+        line_number,
+        text: String::from("function otherPhpFunction() {"),
+    }];
+    let args = make_args(query, Some(String::from("./tests/fixtures/only-php")), None);
     let config = Config::new(args).expect("Incorrect config for test");
     let actual = search(&config).expect("Search failed for test");
     assert_eq!(expected, actual);

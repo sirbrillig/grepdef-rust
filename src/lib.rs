@@ -233,7 +233,7 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let results: Vec<SearchResult> = vec![];
     let results = Arc::new(Mutex::new(results));
 
-    debug(&config, "Starting searchers");
+    debug(config, "Starting searchers");
     for entry in Walk::new(&config.file_path) {
         let path = entry?.into_path();
         if path.is_dir() {
@@ -266,9 +266,9 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         })
     }
 
-    debug(&config, "Waiting for searchers to complete");
+    debug(config, "Waiting for searchers to complete");
     pool.wait_for_all_jobs_and_stop();
-    debug(&config, "Searchers complete");
+    debug(config, "Searchers complete");
 
     let results = Arc::into_inner(results)
         .expect("Unable to collect search results from threads: reference counter failed");
@@ -345,11 +345,9 @@ where
             }
             debug(config, "  Presearch was successful; searching for line");
             callback(search_file_line_by_line(re, file_path, &file));
-            return;
         }
         Err(_) => {
             callback(vec![]);
-            return;
         }
     }
 }

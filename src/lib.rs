@@ -25,9 +25,13 @@ pub struct Args {
     #[arg(short = 't', long = "type")]
     pub file_type: String,
 
-    /// Show line numbers (starting with 1).
+    /// Show line numbers (starting with 1)
     #[arg(short = 'n', long = "line-number")]
     pub line_number: bool,
+
+    /// Disable color (also supports NO_COLOR env)
+    #[arg(long = "no-color")]
+    pub no_color: bool,
 
     /// (Advanced) Print debugging information
     #[arg(long = "debug")]
@@ -53,6 +57,7 @@ pub struct Config {
     file_type: FileType,
     line_number: bool,
     debug: bool,
+    no_color: bool,
     search_method: SearchMethod,
 }
 
@@ -64,6 +69,7 @@ impl Config {
             file_type: FileType::from_string(args.file_type)?,
             line_number: args.line_number,
             debug: args.debug,
+            no_color: args.no_color,
             search_method: args.search_method.unwrap_or_default(),
         })
     }
@@ -101,6 +107,9 @@ fn get_regexp_for_file_type(file_type: &FileType) -> Regex {
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
+    if config.no_color {
+        colored::control::set_override(false);
+    }
     for line in search(&config)? {
         if config.line_number {
             println!(

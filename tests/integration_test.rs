@@ -1,7 +1,7 @@
 use grepdef_rust::{search, Args, Config, SearchResult};
 use rstest::rstest;
 
-fn make_args(query: String, file_path: Option<String>, file_type_string: String) -> Args {
+fn make_args(query: String, file_path: Option<String>, file_type_string: Option<String>) -> Args {
     Args {
         query,
         file_path,
@@ -24,7 +24,23 @@ fn search_returns_matching_js_function_line() {
         line_number,
         text: String::from("function parseQuery() {"),
     }];
-    let args = make_args(query, Some(file_path), file_type_string);
+    let args = make_args(query, Some(file_path), Some(file_type_string));
+    let config = Config::new(args).expect("Incorrect config for test");
+    let actual = search(&config).expect("Search failed for test");
+    assert_eq!(expected, actual);
+}
+
+#[rstest]
+fn search_returns_matching_js_function_line_guessing_file_type() {
+    let file_path = String::from("./tests/fixtures/js-fixture.js");
+    let query = String::from("parseQuery");
+    let line_number = 7;
+    let expected = vec![SearchResult {
+        file_path: file_path.clone(),
+        line_number,
+        text: String::from("function parseQuery() {"),
+    }];
+    let args = make_args(query, Some(file_path), None);
     let config = Config::new(args).expect("Incorrect config for test");
     let actual = search(&config).expect("Search failed for test");
     assert_eq!(expected, actual);
@@ -50,7 +66,7 @@ fn search_returns_matching_js_function_line_with_filetype_alias(#[case] file_typ
         line_number,
         text: String::from("function parseQuery() {"),
     }];
-    let args = make_args(query, Some(file_path), file_type_string);
+    let args = make_args(query, Some(file_path), Some(file_type_string));
     let config = Config::new(args).expect("Incorrect config for test");
     let actual = search(&config).expect("Search failed for test");
     assert_eq!(expected, actual);
@@ -71,7 +87,7 @@ fn search_returns_expected_line_number_js(
     #[case] line_number: usize,
 ) {
     let file_path = String::from("./tests/fixtures/js-fixture.js");
-    let args = make_args(query, Some(file_path), file_type_string);
+    let args = make_args(query, Some(file_path), Some(file_type_string));
     let config = Config::new(args).expect("Search failed, invalid options");
     let actual = search(&config).expect("Search failed for test");
     assert_eq!(1, actual.len());
@@ -94,7 +110,7 @@ fn search_returns_expected_line_number_jsx(
     #[case] line_number: usize,
 ) {
     let file_path = String::from("./tests/fixtures/jsx-fixture.jsx");
-    let args = make_args(query, Some(file_path), file_type_string);
+    let args = make_args(query, Some(file_path), Some(file_type_string));
     let config = Config::new(args).expect("Search failed, invalid options");
     let actual = search(&config).expect("Search failed for test");
     assert_eq!(1, actual.len());
@@ -121,7 +137,7 @@ fn search_returns_expected_line_number_ts(
     #[case] line_number: usize,
 ) {
     let file_path = String::from("./tests/fixtures/ts-fixture.ts");
-    let args = make_args(query, Some(file_path), file_type_string);
+    let args = make_args(query, Some(file_path), Some(file_type_string));
     let config = Config::new(args).expect("Search failed, invalid options");
     let actual = search(&config).expect("Search failed for test");
     assert_eq!(1, actual.len());
@@ -147,7 +163,7 @@ fn search_returns_matching_js_function_line_for_recursive() {
             text: String::from("function parseQuery() {"),
         },
     ];
-    let args = make_args(query, Some(file_path), file_type_string);
+    let args = make_args(query, Some(file_path), Some(file_type_string));
     let config = Config::new(args).expect("Incorrect config for test");
     let actual = search(&config).expect("Search failed for test");
     assert!(actual.iter().all(|item| expected.contains(item)));
@@ -171,7 +187,7 @@ fn search_returns_matching_js_function_line_for_recursive_default_path() {
             text: String::from("function parseQuery() {"),
         },
     ];
-    let args = make_args(query, None, file_type_string);
+    let args = make_args(query, None, Some(file_type_string));
     let config = Config::new(args).expect("Incorrect config for test");
     let actual = search(&config).expect("Search failed for test");
     assert!(actual.iter().all(|item| expected.contains(item)));
@@ -197,7 +213,7 @@ fn search_returns_matching_ts_function_line_for_recursive() {
             text: String::from("function parseQueryTS(): string {"),
         },
     ];
-    let args = make_args(query, Some(file_path), file_type_string);
+    let args = make_args(query, Some(file_path), Some(file_type_string));
     let config = Config::new(args).expect("Incorrect config for test");
     let actual = search(&config).expect("Search failed for test");
     assert!(actual.iter().all(|item| expected.contains(item)));
@@ -215,7 +231,23 @@ fn search_returns_matching_php_function_line() {
         line_number,
         text: String::from("function parseQuery() {"),
     }];
-    let args = make_args(query, Some(file_path), file_type_string);
+    let args = make_args(query, Some(file_path), Some(file_type_string));
+    let config = Config::new(args).expect("Incorrect config for test");
+    let actual = search(&config).expect("Search failed for test");
+    assert_eq!(expected, actual);
+}
+
+#[rstest]
+fn search_returns_matching_php_function_line_guessing_file_type() {
+    let file_path = String::from("./tests/fixtures/php-fixture.php");
+    let query = String::from("parseQuery");
+    let line_number = 6;
+    let expected = vec![SearchResult {
+        file_path: file_path.clone(),
+        line_number,
+        text: String::from("function parseQuery() {"),
+    }];
+    let args = make_args(query, Some(file_path), None);
     let config = Config::new(args).expect("Incorrect config for test");
     let actual = search(&config).expect("Search failed for test");
     assert_eq!(expected, actual);
@@ -236,7 +268,7 @@ fn search_returns_expected_line_number_php(
     #[case] line_number: usize,
 ) {
     let file_path = String::from("./tests/fixtures/php-fixture.php");
-    let args = make_args(query, Some(file_path), file_type_string);
+    let args = make_args(query, Some(file_path), Some(file_type_string));
     let config = Config::new(args).expect("Search failed, invalid options");
     let actual = search(&config).expect("Search failed for test");
     assert_eq!(1, actual.len());
@@ -255,7 +287,7 @@ fn search_returns_matching_php_function_line_for_recursive() {
         line_number,
         text: String::from("function parseQuery() {"),
     }];
-    let args = make_args(query, Some(file_path), file_type_string);
+    let args = make_args(query, Some(file_path), Some(file_type_string));
     let config = Config::new(args).expect("Incorrect config for test");
     let actual = search(&config).expect("Search failed for test");
     assert!(actual.iter().all(|item| expected.contains(item)));

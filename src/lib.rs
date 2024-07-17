@@ -21,9 +21,9 @@ pub struct Args {
     /// The file path(s) to search
     pub file_path: Option<String>,
 
-    /// The file type to search (js, ts, php)
+    /// The file type to search (js, php); will guess if not set
     #[arg(short = 't', long = "type")]
-    pub file_type: String,
+    pub file_type: Option<String>,
 
     /// Show line numbers (starting with 1)
     #[arg(short = 'n', long = "line-number")]
@@ -63,10 +63,15 @@ pub struct Config {
 
 impl Config {
     pub fn new(args: Args) -> Result<Config, &'static str> {
+        let file_path = args.file_path.unwrap_or(".".into());
+        let file_type = match args.file_type {
+            Some(file_type_string) => FileType::from_string(file_type_string)?,
+            None => guess_file_type(&file_path)?,
+        };
         Ok(Config {
             query: args.query,
-            file_path: args.file_path.unwrap_or(".".into()),
-            file_type: FileType::from_string(args.file_type)?,
+            file_path,
+            file_type,
             line_number: args.line_number,
             debug: args.debug,
             no_color: args.no_color,
@@ -105,6 +110,33 @@ pub struct SearchResult {
     pub file_path: String,
     pub line_number: usize,
     pub text: String,
+}
+
+fn guess_file_type(file_path: &str) -> Result<FileType, &'static str> {
+    match guess_file_type_from_file_path(file_path) {
+        Some(guess) => Ok(guess),
+        None => match guess_file_type_from_nearby_files(file_path) {
+            Some(guess) => Ok(guess),
+            None => Err("Unable to determine file type"),
+        },
+    }
+}
+
+fn guess_file_type_from_file_path(file_path: &str) -> Option<FileType> {
+    let js_regex = get_regexp_for_file_type(&FileType::JS);
+    let php_regex = get_regexp_for_file_type(&FileType::PHP);
+    if js_regex.is_match(file_path) {
+        return Some(FileType::JS);
+    }
+    if php_regex.is_match(file_path) {
+        return Some(FileType::PHP);
+    }
+    return None;
+}
+
+fn guess_file_type_from_nearby_files(file_path: &str) -> Option<FileType> {
+    // FIXME
+    return None;
 }
 
 fn get_regexp_for_file_type(file_type: &FileType) -> Regex {

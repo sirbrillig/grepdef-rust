@@ -85,6 +85,15 @@ impl FileType {
     pub fn from_string(file_type_string: String) -> Result<FileType, &'static str> {
         match file_type_string.as_str() {
             "js" => Ok(FileType::JS),
+            "ts" => Ok(FileType::JS),
+            "jsx" => Ok(FileType::JS),
+            "tsx" => Ok(FileType::JS),
+            "javascript" => Ok(FileType::JS),
+            "javascript.jsx" => Ok(FileType::JS),
+            "javascriptreact" => Ok(FileType::JS),
+            "typescript" => Ok(FileType::JS),
+            "typescript.tsx" => Ok(FileType::JS),
+            "typescriptreact" => Ok(FileType::JS),
             "php" => Ok(FileType::PHP),
             _ => Err("Invalid file type"),
         }

@@ -31,6 +31,32 @@ fn search_returns_matching_js_function_line() {
 }
 
 #[rstest]
+#[case(String::from("js"))]
+#[case(String::from("ts"))]
+#[case(String::from("jsx"))]
+#[case(String::from("tsx"))]
+#[case(String::from("javascript"))]
+#[case(String::from("javascript.jsx"))]
+#[case(String::from("javascriptreact"))]
+#[case(String::from("typescript"))]
+#[case(String::from("typescript.tsx"))]
+#[case(String::from("typescriptreact"))]
+fn search_returns_matching_js_function_line_with_filetype_alias(#[case] file_type_string: String) {
+    let file_path = String::from("./tests/fixtures/js-fixture.js");
+    let query = String::from("parseQuery");
+    let line_number = 7;
+    let expected = vec![SearchResult {
+        file_path: file_path.clone(),
+        line_number,
+        text: String::from("function parseQuery() {"),
+    }];
+    let args = make_args(query, Some(file_path), file_type_string);
+    let config = Config::new(args).expect("Incorrect config for test");
+    let actual = search(&config).expect("Search failed for test");
+    assert_eq!(expected, actual);
+}
+
+#[rstest]
 #[case(String::from("queryDb"), String::from("js"), 1)]
 #[case(String::from("makeQuery"), String::from("js"), 4)]
 #[case(String::from("parseQuery"), String::from("js"), 7)]

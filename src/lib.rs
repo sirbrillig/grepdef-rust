@@ -19,7 +19,7 @@ pub struct Args {
     pub query: String,
 
     /// The file path(s) to search
-    pub file_path: Option<String>,
+    pub file_path: Option<Vec<String>>,
 
     /// The file type to search (js, php); will guess if not set
     #[arg(short = 't', long = "type")]
@@ -53,7 +53,7 @@ pub enum SearchMethod {
 #[derive(Clone)]
 pub struct Config {
     query: String,
-    file_path: String,
+    file_paths: Vec<String>,
     file_type: FileType,
     line_number: bool,
     debug: bool,
@@ -63,14 +63,21 @@ pub struct Config {
 
 impl Config {
     pub fn new(args: Args) -> Result<Config, &'static str> {
-        let file_path = args.file_path.unwrap_or(".".into());
+        if args.debug {
+            let args_formatted = format!("Creating config with args {:?}", args);
+            println!("{}", args_formatted.yellow());
+        }
+        let file_paths = match args.file_path {
+            Some(file_path) => file_path,
+            None => vec![".".into()],
+        };
         let file_type = match args.file_type {
             Some(file_type_string) => FileType::from_string(file_type_string)?,
-            None => guess_file_type(&file_path)?,
+            None => guess_file_type(&file_paths)?,
         };
         Ok(Config {
             query: args.query,
-            file_path,
+            file_paths,
             file_type,
             line_number: args.line_number,
             debug: args.debug,
@@ -112,14 +119,14 @@ pub struct SearchResult {
     pub text: String,
 }
 
-fn guess_file_type(file_path: &str) -> Result<FileType, &'static str> {
-    match guess_file_type_from_file_path(file_path) {
-        Some(guess) => Ok(guess),
-        None => match guess_file_type_from_nearby_files(file_path) {
-            Some(guess) => Ok(guess),
-            None => Err("Unable to determine file type"),
-        },
+fn guess_file_type(file_paths: &Vec<String>) -> Result<FileType, &'static str> {
+    for file_path in file_paths {
+        let guess = guess_file_type_from_file_path(file_path);
+        if guess.is_some() {
+            return Ok(guess.unwrap());
+        }
     }
+    Err("Unable to determine file type")
 }
 
 fn guess_file_type_from_file_path(file_path: &str) -> Option<FileType> {
@@ -131,11 +138,6 @@ fn guess_file_type_from_file_path(file_path: &str) -> Option<FileType> {
     if php_regex.is_match(file_path) {
         return Some(FileType::PHP);
     }
-    return None;
-}
-
-fn guess_file_type_from_nearby_files(file_path: &str) -> Option<FileType> {
-    // FIXME
     return None;
 }
 
@@ -284,36 +286,38 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let results = Arc::new(Mutex::new(results));
 
     debug(config, "Starting searchers");
-    for entry in Walk::new(&config.file_path) {
-        let path = entry?.into_path();
-        if path.is_dir() {
-            continue;
-        }
-        let path = match path.to_str() {
-            Some(p) => p.to_string(),
-            None => return Err("Error getting string from path".into()),
-        };
-        if !file_type_re.is_match(&path) {
-            continue;
-        }
+    for file_path in &config.file_paths {
+        for entry in Walk::new(file_path) {
+            let path = entry?.into_path();
+            if path.is_dir() {
+                continue;
+            }
+            let path = match path.to_str() {
+                Some(p) => p.to_string(),
+                None => return Err("Error getting string from path".into()),
+            };
+            if !file_type_re.is_match(&path) {
+                continue;
+            }
 
-        let re1 = re.clone();
-        let path1 = path.clone();
-        let config1 = config.clone();
-        let results1 = Arc::clone(&results);
-        pool.execute(move || {
-            search_file(
-                &re1,
-                &path1,
-                &config1,
-                move |file_results: Vec<SearchResult>| {
-                    results1
-                        .lock()
-                        .expect("Unable to collect search data from thread")
-                        .extend(file_results);
-                },
-            );
-        })
+            let re1 = re.clone();
+            let path1 = path.clone();
+            let config1 = config.clone();
+            let results1 = Arc::clone(&results);
+            pool.execute(move || {
+                search_file(
+                    &re1,
+                    &path1,
+                    &config1,
+                    move |file_results: Vec<SearchResult>| {
+                        results1
+                            .lock()
+                            .expect("Unable to collect search data from thread")
+                            .extend(file_results);
+                    },
+                );
+            })
+        }
     }
 
     debug(config, "Waiting for searchers to complete");

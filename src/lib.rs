@@ -85,7 +85,7 @@ impl FileType {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SearchResult {
     pub file_path: String,
     pub line_number: usize,
@@ -130,26 +130,29 @@ type WorkerReceiver = Arc<Mutex<mpsc::Receiver<Job>>>;
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
 struct Worker {
-    id: usize,
+    _id: usize,
     thread: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker {
     pub fn new(id: usize, receiver: WorkerReceiver) -> Worker {
         let thread = thread::spawn(move || loop {
+            // recv will block until the next job is sent.
             let message = receiver.lock().unwrap().recv();
 
             match message {
                 Ok(job) => {
                     job();
                 }
+                // The thread will stop when the job channel is sent an Err, which will happen when
+                // the channel is closed.
                 Err(_) => {
                     break;
                 }
             }
         });
         Worker {
-            id,
+            _id: id,
             thread: Some(thread),
         }
     }
@@ -171,6 +174,7 @@ impl ThreadPool {
     pub fn new(count: usize) -> ThreadPool {
         assert!(count > 0);
 
+        // This channel is used to send Jobs to each thread.
         let (sender, receiver) = mpsc::channel();
 
         let receiver = Arc::new(Mutex::new(receiver));
@@ -194,13 +198,14 @@ impl ThreadPool {
         let job = Box::new(f);
         self.sender.as_ref().unwrap().send(job).unwrap();
     }
-}
 
-impl Drop for ThreadPool {
-    fn drop(&mut self) {
+    pub fn wait_for_all_jobs_and_stop(&mut self) {
+        // Close the Jobs channel which will trigger each thread to stop when it finishes its
+        // current work.
         drop(self.sender.take());
 
         for worker in &mut self.workers {
+            // Collect each thread which all should have stopped working by now.
             if let Some(thread) = worker.thread.take() {
                 thread.join().unwrap();
             }
@@ -208,12 +213,20 @@ impl Drop for ThreadPool {
     }
 }
 
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        self.wait_for_all_jobs_and_stop();
+    }
+}
+
 pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let re = get_regexp_for_query(&config.query, &config.file_type);
     let file_type_re = get_regexp_for_file_type(&config.file_type);
-    let pool = ThreadPool::new(4);
-    let mut results = vec![];
+    let mut pool = ThreadPool::new(4);
+    let results: Vec<SearchResult> = vec![];
+    let results = Arc::new(Mutex::new(results));
 
+    debug(&config, "Starting searchers");
     for entry in Walk::new(&config.file_path) {
         let path = entry?.into_path();
         if path.is_dir() {
@@ -230,18 +243,24 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         let re1 = re.clone();
         let path1 = path.clone();
         let config1 = config.clone();
+        let results1 = Arc::clone(&results);
         pool.execute(move || {
-            search_file(&re1, &path1, &config1);
+            search_file(
+                &re1,
+                &path1,
+                &config1,
+                move |file_results: Vec<SearchResult>| {
+                    results1.lock().unwrap().extend(file_results);
+                },
+            );
         })
     }
 
-    // for child in children {
-    //     let result = child.join();
-    //     let search_result = result.unwrap_or(vec![]);
-    //     results.extend(search_result);
-    // }
+    debug(&config, "Waiting for searchers to complete");
+    pool.wait_for_all_jobs_and_stop();
+    debug(&config, "Searchers complete");
 
-    Ok(results)
+    Ok(Arc::try_unwrap(results).unwrap().into_inner().unwrap())
 }
 
 fn does_file_match_regexp(mut file: &fs::File, re: &Regex) -> bool {
@@ -279,7 +298,10 @@ fn debug(config: &Config, output: &str) {
     }
 }
 
-fn search_file(re: &Regex, file_path: &str, config: &Config) -> Vec<SearchResult> {
+fn search_file<F>(re: &Regex, file_path: &str, config: &Config, callback: F)
+where
+    F: FnOnce(Vec<SearchResult>) + Send + 'static,
+{
     debug(config, format!("Scanning file {}", file_path).as_str());
     let file = fs::File::open(file_path);
 
@@ -297,17 +319,23 @@ fn search_file(re: &Regex, file_path: &str, config: &Config) -> Vec<SearchResult
                 SearchMethod::NoPrescan => false,
             } {
                 debug(config, "  Presearch found no match; skipping");
-                return vec![];
+                callback(vec![]);
+                return;
             }
 
             let rewind_result = file.rewind();
             if rewind_result.is_err() {
-                return vec![];
+                callback(vec![]);
+                return;
             }
             debug(config, "  Presearch was successful; searching for line");
-            search_file_line_by_line(re, file_path, &file)
+            callback(search_file_line_by_line(re, file_path, &file));
+            return;
         }
-        Err(_) => return vec![],
+        Err(_) => {
+            callback(vec![]);
+            return;
+        }
     }
 }
 

@@ -31,14 +31,12 @@ fn search_returns_matching_js_function_line_with_args_new() {
         line_number,
         text: String::from("function parseQuery() {"),
     }];
-    let searcher = Searcher::new(Args::new(
+    let actual = do_search(Args::new(
         query,
         Some("js".into()),
         Some(vec![file_path]),
         true,
-    ))
-    .unwrap();
-    let actual = searcher.search().expect("Search failed for test");
+    ));
     assert_eq!(expected, actual);
 }
 
@@ -156,8 +154,7 @@ fn search_returns_expected_line_number_js(
 ) {
     let file_path = String::from("./tests/fixtures/js-fixture.js");
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let searcher = Searcher::new(args).unwrap();
-    let actual = searcher.search().expect("Search failed for test");
+    let actual = do_search(args);
     assert_eq!(1, actual.len());
     let first_actual = actual.get(0).expect("Search failed for test");
     assert_eq!(line_number, first_actual.line_number.unwrap());
@@ -179,8 +176,7 @@ fn search_returns_expected_line_number_jsx(
 ) {
     let file_path = String::from("./tests/fixtures/jsx-fixture.jsx");
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let searcher = Searcher::new(args).unwrap();
-    let actual = searcher.search().expect("Search failed for test");
+    let actual = do_search(args);
     assert_eq!(1, actual.len());
     let first_actual = actual.get(0).expect("Search failed for test");
     assert_eq!(line_number, first_actual.line_number.unwrap());
@@ -206,8 +202,7 @@ fn search_returns_expected_line_number_ts(
 ) {
     let file_path = String::from("./tests/fixtures/ts-fixture.ts");
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let searcher = Searcher::new(args).unwrap();
-    let actual = searcher.search().expect("Search failed for test");
+    let actual = do_search(args);
     assert_eq!(1, actual.len());
     let first_actual = actual.get(0).expect("Search failed for test");
     assert_eq!(line_number, first_actual.line_number.unwrap());
@@ -232,8 +227,7 @@ fn search_returns_matching_js_function_line_for_recursive() {
         },
     ];
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let searcher = Searcher::new(args).unwrap();
-    let actual = searcher.search().expect("Search failed for test");
+    let actual = do_search(args);
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }
@@ -256,8 +250,7 @@ fn search_returns_matching_js_function_line_for_recursive_default_path() {
         },
     ];
     let args = make_args(query, None, Some(file_type_string));
-    let searcher = Searcher::new(args).unwrap();
-    let actual = searcher.search().expect("Search failed for test");
+    let actual = do_search(args);
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }
@@ -282,8 +275,7 @@ fn search_returns_matching_ts_function_line_for_recursive() {
         },
     ];
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let searcher = Searcher::new(args).unwrap();
-    let actual = searcher.search().expect("Search failed for test");
+    let actual = do_search(args);
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }
@@ -347,8 +339,7 @@ fn search_returns_expected_line_number_php(
 ) {
     let file_path = String::from("./tests/fixtures/php-fixture.php");
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let searcher = Searcher::new(args).unwrap();
-    let actual = searcher.search().expect("Search failed for test");
+    let actual = do_search(args);
     assert_eq!(1, actual.len());
     let first_actual = actual.get(0).expect("Search failed for test");
     assert_eq!(line_number, first_actual.line_number.unwrap());
@@ -366,8 +357,7 @@ fn search_returns_matching_php_function_line_for_recursive() {
         text: String::from("function parseQuery() {"),
     }];
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let searcher = Searcher::new(args).unwrap();
-    let actual = searcher.search().expect("Search failed for test");
+    let actual = do_search(args);
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }

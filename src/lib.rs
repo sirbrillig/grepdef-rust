@@ -405,18 +405,16 @@ impl Searcher {
             .expect("Unable to collect search results from threads: mutex failed");
 
         // Don't try to even calculate elapsed time if we are not going to print it
-        match (self.config.debug, start) {
-            (true, Some(start)) => self.debug(
+        if let (true, Some(start)) = (self.config.debug, start) {
+            self.debug(
                 format!(
                     "Scanned {} files in {} ms",
                     searched_file_count,
                     start.elapsed().as_millis()
                 )
                 .as_str(),
-            ),
-            _ => (),
+            );
         }
-
         Ok(results)
     }
 

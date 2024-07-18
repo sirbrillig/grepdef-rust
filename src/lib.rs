@@ -444,10 +444,6 @@ where
         Ok(mut file) => {
             // Scan the file in big chunks to see if it has what we are looking for. This is more efficient
             // than going line-by-line on every file since matches should be quite rare.
-            debug(
-                config,
-                format!("  Using search-method {}", config.search_method).as_str(),
-            );
             if match config.search_method {
                 SearchMethod::PrescanRegex => !file_type::does_file_match_regexp(&file, re),
                 SearchMethod::PrescanMemmem => {

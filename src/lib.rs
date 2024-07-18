@@ -48,7 +48,7 @@
 //!     ..Args::default()
 //! })
 //! .unwrap();
-//! for result in search(&config).unwrap() {
+//! for result in search(config).unwrap() {
 //!     println!("{}", result.to_grep());
 //! }
 //! ```
@@ -300,11 +300,11 @@ fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
 ///     ..Args::default()
 /// })
 /// .unwrap();
-/// for result in search(&config).unwrap() {
+/// for result in search(config).unwrap() {
 ///     println!("{}", result.to_grep());
 /// }
 /// ```
-pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+pub fn search(config: Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let re = get_regexp_for_query(&config.query, &config.file_type);
     let file_type_re = file_type::get_regexp_for_file_type(&config.file_type);
     let mut pool = threads::ThreadPool::new(5);
@@ -315,7 +315,7 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         colored::control::set_override(false);
     }
 
-    debug(config, "Starting searchers");
+    debug(&config, "Starting searchers");
     for file_path in &config.file_paths {
         for entry in Walk::new(file_path) {
             let path = entry?.into_path();
@@ -350,9 +350,9 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         }
     }
 
-    debug(config, "Waiting for searchers to complete");
+    debug(&config, "Waiting for searchers to complete");
     pool.wait_for_all_jobs_and_stop();
-    debug(config, "Searchers complete");
+    debug(&config, "Searchers complete");
 
     let results = Arc::into_inner(results)
         .expect("Unable to collect search results from threads: reference counter failed");

@@ -9,7 +9,7 @@ fn main() {
         eprintln!("{err}");
         process::exit(exitcode::USAGE);
     });
-    match search(&config) {
+    match search(config) {
         Ok(results) => {
             for line in results {
                 println!("{}", line.to_grep());

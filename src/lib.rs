@@ -58,6 +58,7 @@ use std::io::{self, BufRead, Seek};
 use std::num::NonZero;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::time;
 use strum_macros::Display;
 use strum_macros::EnumString;
 
@@ -340,6 +341,12 @@ impl Searcher {
 
     /// Perform the search this struct was built to do
     pub fn search(&self) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+        // Don't try to even calculate elapsed time if we are not going to print it
+        let start: Option<time::Instant> = if self.config.debug {
+            Some(time::Instant::now())
+        } else {
+            None
+        };
         let re = get_regexp_for_query(&self.config.query, &self.config.file_type);
         let file_type_re = file_type::get_regexp_for_file_type(&self.config.file_type);
         let mut pool = threads::ThreadPool::new(self.config.num_threads);
@@ -351,6 +358,7 @@ impl Searcher {
         }
 
         self.debug("Starting searchers");
+        let mut searched_file_count = 0;
         for file_path in &self.config.file_paths {
             for entry in Walk::new(file_path) {
                 let path = entry?.into_path();
@@ -364,6 +372,7 @@ impl Searcher {
                 if !file_type_re.is_match(&path) {
                     continue;
                 }
+                searched_file_count += 1;
 
                 let re1 = re.clone();
                 let path1 = path.clone();
@@ -394,6 +403,20 @@ impl Searcher {
         let results = results
             .into_inner()
             .expect("Unable to collect search results from threads: mutex failed");
+
+        // Don't try to even calculate elapsed time if we are not going to print it
+        match (self.config.debug, start) {
+            (true, Some(start)) => self.debug(
+                format!(
+                    "Scanned {} files in {} ms",
+                    searched_file_count,
+                    start.elapsed().as_millis()
+                )
+                .as_str(),
+            ),
+            _ => (),
+        }
+
         Ok(results)
     }
 

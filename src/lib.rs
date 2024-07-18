@@ -306,7 +306,7 @@ fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
 pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let re = get_regexp_for_query(&config.query, &config.file_type);
     let file_type_re = file_type::get_regexp_for_file_type(&config.file_type);
-    let mut pool = threads::ThreadPool::new(4);
+    let mut pool = threads::ThreadPool::new(5);
     let results: Vec<SearchResult> = vec![];
     let results = Arc::new(Mutex::new(results));
 

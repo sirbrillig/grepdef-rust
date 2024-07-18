@@ -275,19 +275,6 @@ impl SearchResult {
     }
 }
 
-/// Run the CLI script
-///
-/// This should not be used manually by other crates. See [search] instead.
-pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    if config.no_color {
-        colored::control::set_override(false);
-    }
-    for line in search(&config)? {
-        println!("{}", line.to_grep());
-    }
-    Ok(())
-}
-
 fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
     let regexp_string = match file_type {
         FileType::JS => &format!(

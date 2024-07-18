@@ -1,15 +1,14 @@
 use clap::Parser;
-use grepdef_rust::search;
 use grepdef_rust::Args;
-use grepdef_rust::Config;
+use grepdef_rust::Searcher;
 use std::process;
 
 fn main() {
-    let config = Config::new(Args::parse()).unwrap_or_else(|err| {
+    let searcher = Searcher::new(Args::parse()).unwrap_or_else(|err| {
         eprintln!("{err}");
         process::exit(exitcode::USAGE);
     });
-    match search(config) {
+    match searcher.search() {
         Ok(results) => {
             for line in results {
                 println!("{}", line.to_grep());

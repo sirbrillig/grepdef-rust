@@ -38,17 +38,12 @@
 //! // ./src/queries.js:17:function parseQuery {
 //! ```
 //!
-//! To use the crate from other Rust code, use the [search] function.
+//! To use the crate from other Rust code, use [Searcher].
 //!
 //! ```
-//! use grepdef_rust::{search, Args, Config};
+//! use grepdef_rust::{Args, Searcher};
 //!
-//! let config = Config::new(Args {
-//!     query: String::from("parseQuery"),
-//!     ..Args::default()
-//! })
-//! .unwrap();
-//! for result in search(config).unwrap() {
+//! for result in Searcher::new(Args::build_minimal("parseQuery")).unwrap().search().unwrap() {
 //!     println!("{}", result.to_grep());
 //! }
 //! ```
@@ -68,24 +63,21 @@ use strum_macros::EnumString;
 mod file_type;
 mod threads;
 
-/// The command-line arguments to be turned into a [Config]
+/// The command-line arguments to be used by [Searcher]
 ///
-/// Use this instead of [Config] directly if you want to benefit from optional parameters and
-/// auto-detection.
-///
-/// Can be passed to [Config::new()].
+/// Can be passed to [Searcher::new].
 ///
 /// The only required property is [Args::query].
 ///
 /// # Example
 ///
 /// ```
-/// use grepdef_rust::{Config, Args};
-/// let config = Config::new(Args {
-///     query: String::from("parseQuery"),
-///     line_number: true,
-///     ..Args::default()
-/// });
+/// use grepdef_rust::Args;
+/// let config = Args::build_minimal("parseQuery");
+/// assert_eq!(config.query, String::from("parseQuery"));
+/// assert_eq!(config.file_path, None); // The current directory
+/// assert_eq!(config.file_type, None); // Auto-detect the file type
+/// assert_eq!(config.line_number, false); // Do not print line numbers
 /// ```
 #[derive(Parser, Debug, Default)]
 pub struct Args {
@@ -116,6 +108,32 @@ pub struct Args {
     pub search_method: Option<SearchMethod>,
 }
 
+impl Args {
+    /// Create a new set of arguments for [Searcher] with the minimal configuration
+    pub fn build_minimal(query: &str) -> Args {
+        Args {
+            query: query.into(),
+            ..Args::default()
+        }
+    }
+
+    /// Create a new set of arguments for [Searcher]
+    pub fn new(
+        query: String,
+        file_type: Option<String>,
+        file_path: Option<Vec<String>>,
+        line_number: bool,
+    ) -> Args {
+        Args {
+            query,
+            file_type,
+            file_path,
+            line_number,
+            ..Args::default()
+        }
+    }
+}
+
 /// (Advanced) The type of underlying search algorithm to use
 ///
 /// In general, a pre-scan is a good idea to quickly skip files that don't have a match, which
@@ -133,39 +151,28 @@ pub enum SearchMethod {
     NoPrescan,
 }
 
-/// The configuration passed to the [search] function
-///
-/// The easiest way to use this is to first create an [Args] object and pass that to
-/// [Config::new] to take advantage of optional properties and auto-detection.
-///
-/// # Example
-///
-/// ```
-/// use grepdef_rust::{Config, Args};
-/// let config = Config::new(Args { query: String::from("parseQuery"), ..Args::default() });
-/// ```
 #[derive(Clone, Debug)]
-pub struct Config {
+struct Config {
     /// The symbol name (function, class, etc.) being searched for
-    pub query: String,
+    query: String,
 
     /// The list of file paths to search, ignoring invisible or gitignored files
-    pub file_paths: Vec<String>,
+    file_paths: Vec<String>,
 
     /// The type of files to scan (JS or PHP)
-    pub file_type: FileType,
+    file_type: FileType,
 
     /// Include line numbers in results if true
-    pub line_number: bool,
+    line_number: bool,
 
     /// Output debugging info during search if true
-    pub debug: bool,
+    debug: bool,
 
     /// Explicitly disable color output if true
-    pub no_color: bool,
+    no_color: bool,
 
     /// The [SearchMethod] to use
-    pub search_method: SearchMethod,
+    search_method: SearchMethod,
 }
 
 impl Config {
@@ -233,9 +240,9 @@ impl FileType {
     }
 }
 
-/// A result from calling [search]
+/// A result from calling [Searcher::search]
 ///
-/// The `line_number` will be set only if [Config::line_number] is true when calling [search].
+/// The `line_number` will be set only if [Args::line_number] is true when calling [Searcher::search].
 ///
 /// See [SearchResult::to_grep] as the most common formatting output.
 #[derive(Debug, PartialEq, Clone)]
@@ -253,12 +260,12 @@ pub struct SearchResult {
 impl SearchResult {
     /// Return a formatted string for output in the "grep" format
     ///
-    /// That is, either `file path:text on line` or, if [Config::line_number] is true,
+    /// That is, either `file path:text on line` or, if [Args::line_number] is true,
     /// `file path:line number:text on line`.
     ///
     /// # Example
     ///
-    /// If [Config::line_number] is true,
+    /// If [Args::line_number] is true,
     ///
     /// ```text
     /// ./src/queries.js:17:function parseQuery {
@@ -286,25 +293,43 @@ fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
     Regex::new(regexp_string).expect("Could not create regex for file type query")
 }
 
-/// Search for a symbol definition
+/// A struct that can perform a search
 ///
 /// This is the main API of this crate.
 ///
 /// # Example
 ///
 /// ```
-/// use grepdef_rust::{search, Args, Config};
-/// let config = Config::new(Args {
-//     query: String::from("parseQuery"),
-///     line_number: true,
-///     ..Args::default()
-/// })
+/// use grepdef_rust::{Args, Searcher};
+/// let searcher = Searcher::new(Args::new(
+///     String::from("parseQuery"),
+///     None,
+///     None,
+///     true
+/// ))
 /// .unwrap();
-/// for result in search(config).unwrap() {
+/// for result in searcher.search().unwrap() {
 ///     println!("{}", result.to_grep());
 /// }
 /// ```
-pub fn search(config: Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+pub struct Searcher {
+    config: Config,
+}
+
+impl Searcher {
+    /// Create a new Config using an [Args]
+    pub fn new(args: Args) -> Result<Searcher, &'static str> {
+        let config = Config::new(args)?;
+        Ok(Searcher { config })
+    }
+
+    /// Perform the search this struct was built to do
+    pub fn search(&self) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+        search(&self.config)
+    }
+}
+
+fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let re = get_regexp_for_query(&config.query, &config.file_type);
     let file_type_re = file_type::get_regexp_for_file_type(&config.file_type);
     let mut pool = threads::ThreadPool::new(5);
@@ -315,7 +340,7 @@ pub fn search(config: Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         colored::control::set_override(false);
     }
 
-    debug(&config, "Starting searchers");
+    debug(config, "Starting searchers");
     for file_path in &config.file_paths {
         for entry in Walk::new(file_path) {
             let path = entry?.into_path();
@@ -350,9 +375,9 @@ pub fn search(config: Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         }
     }
 
-    debug(&config, "Waiting for searchers to complete");
+    debug(config, "Waiting for searchers to complete");
     pool.wait_for_all_jobs_and_stop();
-    debug(&config, "Searchers complete");
+    debug(config, "Searchers complete");
 
     let results = Arc::into_inner(results)
         .expect("Unable to collect search results from threads: reference counter failed");

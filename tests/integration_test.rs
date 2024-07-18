@@ -1,4 +1,4 @@
-use grepdef_rust::{search, Args, Config, FileType, SearchMethod, SearchResult};
+use grepdef_rust::{Args, SearchResult, Searcher};
 use rstest::rstest;
 
 fn make_args(query: String, file_path: Option<String>, file_type_string: Option<String>) -> Args {
@@ -16,8 +16,13 @@ fn make_args(query: String, file_path: Option<String>, file_type_string: Option<
     }
 }
 
+fn do_search(args: Args) -> Vec<SearchResult> {
+    let searcher = Searcher::new(args).unwrap();
+    searcher.search().expect("Search failed for test")
+}
+
 #[rstest]
-fn search_returns_matching_js_function_line_with_raw_config() {
+fn search_returns_matching_js_function_line_with_args_new() {
     let file_path = String::from("./tests/fixtures/js-fixture.js");
     let query = String::from("parseQuery");
     let line_number = Some(7);
@@ -26,16 +31,14 @@ fn search_returns_matching_js_function_line_with_raw_config() {
         line_number,
         text: String::from("function parseQuery() {"),
     }];
-    let config = Config {
+    let searcher = Searcher::new(Args::new(
         query,
-        file_paths: vec![file_path],
-        file_type: FileType::JS,
-        line_number: true,
-        debug: false,
-        no_color: false,
-        search_method: SearchMethod::default(),
-    };
-    let actual = search(config).expect("Search failed for test");
+        Some("js".into()),
+        Some(vec![file_path]),
+        true,
+    ))
+    .unwrap();
+    let actual = searcher.search().expect("Search failed for test");
     assert_eq!(expected, actual);
 }
 
@@ -51,9 +54,7 @@ fn search_returns_matching_js_function_line() {
         text: String::from("function parseQuery() {"),
     }];
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let config = Config::new(args).expect("Incorrect config for test");
-    let actual = search(config).expect("Search failed for test");
-    assert_eq!(expected, actual);
+    assert_eq!(expected, do_search(args));
 }
 
 #[rstest]
@@ -68,9 +69,7 @@ fn search_returns_matching_js_function_line_with_two_files() {
         text: String::from("function parseQuery() {"),
     }];
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let config = Config::new(args).expect("Incorrect config for test");
-    let actual = search(config).expect("Search failed for test");
-    assert_eq!(expected, actual);
+    assert_eq!(expected, do_search(args));
 }
 
 #[rstest]
@@ -85,9 +84,7 @@ fn search_returns_matching_js_function_line_with_one_file_one_directory_matching
         text: String::from("function parseQuery() {"),
     }];
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let config = Config::new(args).expect("Incorrect config for test");
-    let actual = search(config).expect("Search failed for test");
-    assert_eq!(expected, actual);
+    assert_eq!(expected, do_search(args));
 }
 
 #[rstest]
@@ -102,9 +99,7 @@ fn search_returns_matching_js_function_line_with_one_file_one_directory_matching
         text: String::from("function parseQuery() {"),
     }];
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let config = Config::new(args).expect("Incorrect config for test");
-    let actual = search(config).expect("Search failed for test");
-    assert_eq!(expected, actual);
+    assert_eq!(expected, do_search(args));
 }
 
 #[rstest]
@@ -118,9 +113,7 @@ fn search_returns_matching_js_function_line_guessing_file_type() {
         text: String::from("function parseQuery() {"),
     }];
     let args = make_args(query, Some(file_path), None);
-    let config = Config::new(args).expect("Incorrect config for test");
-    let actual = search(config).expect("Search failed for test");
-    assert_eq!(expected, actual);
+    assert_eq!(expected, do_search(args));
 }
 
 #[rstest]
@@ -144,9 +137,7 @@ fn search_returns_matching_js_function_line_with_filetype_alias(#[case] file_typ
         text: String::from("function parseQuery() {"),
     }];
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let config = Config::new(args).expect("Incorrect config for test");
-    let actual = search(config).expect("Search failed for test");
-    assert_eq!(expected, actual);
+    assert_eq!(expected, do_search(args));
 }
 
 #[rstest]
@@ -165,8 +156,8 @@ fn search_returns_expected_line_number_js(
 ) {
     let file_path = String::from("./tests/fixtures/js-fixture.js");
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let config = Config::new(args).expect("Search failed, invalid options");
-    let actual = search(config).expect("Search failed for test");
+    let searcher = Searcher::new(args).unwrap();
+    let actual = searcher.search().expect("Search failed for test");
     assert_eq!(1, actual.len());
     let first_actual = actual.get(0).expect("Search failed for test");
     assert_eq!(line_number, first_actual.line_number.unwrap());
@@ -188,8 +179,8 @@ fn search_returns_expected_line_number_jsx(
 ) {
     let file_path = String::from("./tests/fixtures/jsx-fixture.jsx");
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let config = Config::new(args).expect("Search failed, invalid options");
-    let actual = search(config).expect("Search failed for test");
+    let searcher = Searcher::new(args).unwrap();
+    let actual = searcher.search().expect("Search failed for test");
     assert_eq!(1, actual.len());
     let first_actual = actual.get(0).expect("Search failed for test");
     assert_eq!(line_number, first_actual.line_number.unwrap());
@@ -215,8 +206,8 @@ fn search_returns_expected_line_number_ts(
 ) {
     let file_path = String::from("./tests/fixtures/ts-fixture.ts");
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let config = Config::new(args).expect("Search failed, invalid options");
-    let actual = search(config).expect("Search failed for test");
+    let searcher = Searcher::new(args).unwrap();
+    let actual = searcher.search().expect("Search failed for test");
     assert_eq!(1, actual.len());
     let first_actual = actual.get(0).expect("Search failed for test");
     assert_eq!(line_number, first_actual.line_number.unwrap());
@@ -241,8 +232,8 @@ fn search_returns_matching_js_function_line_for_recursive() {
         },
     ];
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let config = Config::new(args).expect("Incorrect config for test");
-    let actual = search(config).expect("Search failed for test");
+    let searcher = Searcher::new(args).unwrap();
+    let actual = searcher.search().expect("Search failed for test");
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }
@@ -265,8 +256,8 @@ fn search_returns_matching_js_function_line_for_recursive_default_path() {
         },
     ];
     let args = make_args(query, None, Some(file_type_string));
-    let config = Config::new(args).expect("Incorrect config for test");
-    let actual = search(config).expect("Search failed for test");
+    let searcher = Searcher::new(args).unwrap();
+    let actual = searcher.search().expect("Search failed for test");
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }
@@ -291,8 +282,8 @@ fn search_returns_matching_ts_function_line_for_recursive() {
         },
     ];
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let config = Config::new(args).expect("Incorrect config for test");
-    let actual = search(config).expect("Search failed for test");
+    let searcher = Searcher::new(args).unwrap();
+    let actual = searcher.search().expect("Search failed for test");
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }
@@ -309,9 +300,7 @@ fn search_returns_matching_php_function_line() {
         text: String::from("function parseQuery() {"),
     }];
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let config = Config::new(args).expect("Incorrect config for test");
-    let actual = search(config).expect("Search failed for test");
-    assert_eq!(expected, actual);
+    assert_eq!(expected, do_search(args));
 }
 
 #[rstest]
@@ -325,9 +314,7 @@ fn search_returns_matching_php_function_line_guessing_file_type_from_filename() 
         text: String::from("function parseQuery() {"),
     }];
     let args = make_args(query, Some(file_path), None);
-    let config = Config::new(args).expect("Incorrect config for test");
-    let actual = search(config).expect("Search failed for test");
-    assert_eq!(expected, actual);
+    assert_eq!(expected, do_search(args));
 }
 
 #[rstest]
@@ -341,9 +328,7 @@ fn search_returns_matching_php_function_line_guessing_file_type_from_directory()
         text: String::from("function otherPhpFunction() {"),
     }];
     let args = make_args(query, Some(String::from("./tests/fixtures/only-php")), None);
-    let config = Config::new(args).expect("Incorrect config for test");
-    let actual = search(config).expect("Search failed for test");
-    assert_eq!(expected, actual);
+    assert_eq!(expected, do_search(args));
 }
 
 #[rstest]
@@ -362,8 +347,8 @@ fn search_returns_expected_line_number_php(
 ) {
     let file_path = String::from("./tests/fixtures/php-fixture.php");
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let config = Config::new(args).expect("Search failed, invalid options");
-    let actual = search(config).expect("Search failed for test");
+    let searcher = Searcher::new(args).unwrap();
+    let actual = searcher.search().expect("Search failed for test");
     assert_eq!(1, actual.len());
     let first_actual = actual.get(0).expect("Search failed for test");
     assert_eq!(line_number, first_actual.line_number.unwrap());
@@ -381,8 +366,8 @@ fn search_returns_matching_php_function_line_for_recursive() {
         text: String::from("function parseQuery() {"),
     }];
     let args = make_args(query, Some(file_path), Some(file_type_string));
-    let config = Config::new(args).expect("Incorrect config for test");
-    let actual = search(config).expect("Search failed for test");
+    let searcher = Searcher::new(args).unwrap();
+    let actual = searcher.search().expect("Search failed for test");
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }

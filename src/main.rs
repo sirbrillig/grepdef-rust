@@ -9,9 +9,6 @@ fn main() {
         eprintln!("{err}");
         process::exit(exitcode::USAGE);
     });
-    if config.no_color {
-        colored::control::set_override(false);
-    }
     match search(&config) {
         Ok(results) => {
             for line in results {

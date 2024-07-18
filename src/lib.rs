@@ -311,6 +311,10 @@ pub fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let results: Vec<SearchResult> = vec![];
     let results = Arc::new(Mutex::new(results));
 
+    if config.no_color {
+        colored::control::set_override(false);
+    }
+
     debug(config, "Starting searchers");
     for file_path in &config.file_paths {
         for entry in Walk::new(file_path) {

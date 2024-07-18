@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! Quick search for symbol definitions in various programming languages
 //!
 //! Currently this supports JS (or TypeScript) and PHP.
@@ -37,7 +38,7 @@
 //! // ./src/queries.js:17:function parseQuery {
 //! ```
 //!
-//! To use the crate from other Rust code, use the `search()` function.
+//! To use the crate from other Rust code, use the [search] function.
 //!
 //! ```
 //! use grepdef_rust::{search, Args, Config};
@@ -66,20 +67,24 @@ use std::thread;
 use strum_macros::Display;
 use strum_macros::EnumString;
 
-/// The command-line arguments to be turned into a `Config`
+/// The command-line arguments to be turned into a [Config]
 ///
-/// Use this instead of `Config` directly if you want to benefit from optional parameters and
+/// Use this instead of [Config] directly if you want to benefit from optional parameters and
 /// auto-detection.
 ///
-/// Can be passed to `Config::new()`.
+/// Can be passed to [Config::new()].
 ///
-/// The only required property is `query`.
+/// The only required property is [Args::query].
 ///
 /// # Example
 ///
 /// ```
 /// use grepdef_rust::{Config, Args};
-/// let config = Config::new(Args { query: String::from("parseQuery"), line_number: true, ..Args::default() });
+/// let config = Config::new(Args {
+///     query: String::from("parseQuery"),
+///     line_number: true,
+///     ..Args::default()
+/// });
 /// ```
 #[derive(Parser, Debug, Default)]
 pub struct Args {
@@ -111,37 +116,59 @@ pub struct Args {
 }
 
 /// (Advanced) The type of underlying search algorithm to use
+///
+/// In general, a pre-scan is a good idea to quickly skip files that don't have a match, which
+/// should be most files. You shouldn't need to change this from the default.
 #[derive(clap::ValueEnum, Clone, Default, Debug, EnumString, PartialEq, Display)]
 pub enum SearchMethod {
+    /// Pre-scan each file by reading fully into memory and using a Regex
     #[default]
     PrescanRegex,
+
+    /// Pre-scan each file by reading bytes until the query is found using memmem
     PrescanMemmem,
+
+    /// Don't pre-scan files.
     NoPrescan,
 }
 
-/// The configuration passed to the `search()` function
+/// The configuration passed to the [search] function
 ///
-/// The easiest way to use this is to first create an `Args` object and pass that to
-/// `Config::new()` to take advantage of optional properties and auto-detection.
+/// The easiest way to use this is to first create an [Args] object and pass that to
+/// [Config::new] to take advantage of optional properties and auto-detection.
 ///
 /// # Example
 ///
 /// ```
 /// use grepdef_rust::{Config, Args};
-/// let config = Config::new(Args { query: String::from("parseQuery"), line_number: true, ..Args::default() });
+/// let config = Config::new(Args { query: String::from("parseQuery"), ..Args::default() });
 /// ```
 #[derive(Clone, Debug)]
 pub struct Config {
+    /// The symbol name (function, class, etc.) being searched for
     pub query: String,
+
+    /// The list of file paths to search, ignoring invisible or gitignored files
     pub file_paths: Vec<String>,
+
+    /// The type of files to scan (JS or PHP)
     pub file_type: FileType,
+
+    /// Include line numbers in results if true
     pub line_number: bool,
+
+    /// Output debugging info during search if true
     pub debug: bool,
+
+    /// Explicitly disable color output if true
     pub no_color: bool,
+
+    /// The [SearchMethod] to use
     pub search_method: SearchMethod,
 }
 
 impl Config {
+    /// Create a new Config using an [Args]
     pub fn new(args: Args) -> Result<Config, &'static str> {
         if args.debug {
             let args_formatted = format!("Creating config with args {:?}", args);
@@ -171,18 +198,21 @@ impl Config {
 
 /// The supported file types to search
 ///
-/// You can turn a string into a `FileType` using `FileType::from_string()` which also supports
+/// You can turn a string into a [FileType] using [FileType::from_string] which also supports
 /// type aliases like `javascript`, `javascriptreact`, or `typescript.tsx`.
 #[derive(Clone, Debug)]
 pub enum FileType {
+    /// The JS (or TS) file type
     JS,
+
+    /// The PHP file type
     PHP,
 }
 
 impl FileType {
-    /// Turn a string into a `FileType`
+    /// Turn a string into a [FileType]
     ///
-    /// You can turn a string into a `FileType` using `FileType::from_string()` which also supports
+    /// You can turn a string into a [FileType] using [FileType::from_string] which also supports
     /// type aliases like `javascript`, `javascriptreact`, or `typescript.tsx`.
     pub fn from_string(file_type_string: String) -> Result<FileType, &'static str> {
         match file_type_string.as_str() {
@@ -202,11 +232,11 @@ impl FileType {
     }
 }
 
-/// A result from calling `search()`
+/// A result from calling [search]
 ///
-/// The `line_number` will be set only if `Config.line_number` is true when calling `search()`.
+/// The `line_number` will be set only if [Config::line_number] is true when calling [search].
 ///
-/// See `to_grep()` as the most common formatting output.
+/// See [SearchResult::to_grep] as the most common formatting output.
 #[derive(Debug, PartialEq, Clone)]
 pub struct SearchResult {
     /// The path to the file containing the symbol definition
@@ -222,12 +252,12 @@ pub struct SearchResult {
 impl SearchResult {
     /// Return a formatted string for output in the "grep" format
     ///
-    /// That is, either `file path:text on line` or, if `Config.line_number` is true,
+    /// That is, either `file path:text on line` or, if [Config::line_number] is true,
     /// `file path:line number:text on line`.
     ///
     /// # Example
     ///
-    /// If `Config.line_number` is true,
+    /// If [Config::line_number] is true,
     ///
     /// ```text
     /// ./src/queries.js:17:function parseQuery {
@@ -290,7 +320,7 @@ fn get_regexp_for_file_type(file_type: &FileType) -> Regex {
 
 /// Run the CLI script
 ///
-/// This should not be used manually by other crates. See `search()` instead.
+/// This should not be used manually by other crates. See [search] instead.
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     if config.no_color {
         colored::control::set_override(false);

@@ -451,7 +451,10 @@ where
                 }
                 SearchMethod::NoPrescan => false,
             } {
-                debug(config, "  Presearch found no match; skipping");
+                debug(
+                    config,
+                    format!("Presearch of {} found no match; skipping", &file_path).as_str(),
+                );
                 callback(vec![]);
                 return;
             }
@@ -461,7 +464,14 @@ where
                 callback(vec![]);
                 return;
             }
-            debug(config, "  Presearch was successful; searching for line");
+            debug(
+                config,
+                format!(
+                    "Presearch of {} was successful; searching for line",
+                    &file_path
+                )
+                .as_str(),
+            );
             callback(search_file_line_by_line(re, file_path, &file, config));
         }
         Err(_) => {

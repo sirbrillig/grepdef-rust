@@ -41,6 +41,16 @@ fn search_returns_matching_js_function_line_with_args_new() {
 }
 
 #[rstest]
+fn search_returns_nothing_for_no_results() {
+    let file_path = String::from("./tests/fixtures/js-fixture.js");
+    let query = String::from("thisFunctionDoesNotExist");
+    let file_type_string = String::from("js");
+    let expected: Vec<SearchResult> = vec![];
+    let args = make_args(query, Some(file_path), Some(file_type_string));
+    assert_eq!(expected, do_search(args));
+}
+
+#[rstest]
 fn search_returns_matching_js_function_line() {
     let file_path = String::from("./tests/fixtures/js-fixture.js");
     let query = String::from("parseQuery");

@@ -42,11 +42,12 @@
 //!
 //! ```
 //! use grepdef_rust::{search, Args, Config};
+//!
 //! let config = Config::new(Args {
 //!     query: String::from("parseQuery"),
 //!     ..Args::default()
-//!     })
-//!     .unwrap();
+//! })
+//! .unwrap();
 //! for result in search(&config).unwrap() {
 //!     println!("{}", result.to_grep());
 //! }

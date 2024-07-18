@@ -1,3 +1,4 @@
+use std::num::NonZero;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -44,24 +45,15 @@ pub struct ThreadPool {
 }
 
 impl ThreadPool {
-    /// Create a new ThreadPool
-    ///
-    /// The count is the number of threads availalable in the pool.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if the size is 0.
-    pub fn new(count: usize) -> ThreadPool {
-        assert!(count > 0);
-
+    pub fn new(count: NonZero<usize>) -> ThreadPool {
         // This channel is used to send Jobs to each thread.
         let (sender, receiver) = mpsc::channel();
 
         let receiver = Arc::new(Mutex::new(receiver));
 
-        let mut workers = Vec::with_capacity(count);
+        let mut workers = Vec::with_capacity(count.into());
 
-        for id in 0..count {
+        for id in 0..count.into() {
             workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
 

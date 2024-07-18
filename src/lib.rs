@@ -55,6 +55,7 @@ use regex::Regex;
 use std::error::Error;
 use std::fs;
 use std::io::{self, BufRead, Seek};
+use std::num::NonZero;
 use std::sync::Arc;
 use std::sync::Mutex;
 use strum_macros::Display;
@@ -106,6 +107,10 @@ pub struct Args {
     /// (Advanced) The searching method
     #[arg(long = "search-method")]
     pub search_method: Option<SearchMethod>,
+
+    /// (Advanced) The number of threads to use
+    #[arg(short = 'j', long = "threads")]
+    pub threads: Option<NonZero<usize>>,
 }
 
 impl Args {
@@ -173,6 +178,9 @@ struct Config {
 
     /// The [SearchMethod] to use
     search_method: SearchMethod,
+
+    /// The number of threads to use for searching files
+    num_threads: NonZero<usize>,
 }
 
 impl Config {
@@ -190,6 +198,12 @@ impl Config {
             Some(file_type_string) => FileType::from_string(file_type_string)?,
             None => file_type::guess_file_type(&file_paths)?,
         };
+
+        let num_threads = match args.threads {
+            Some(threads) => threads,
+            None => NonZero::new(5).expect("Number of threads was invalid"),
+        };
+
         let config = Config {
             query: args.query,
             file_paths,
@@ -198,6 +212,7 @@ impl Config {
             debug: args.debug,
             no_color: args.no_color,
             search_method: args.search_method.unwrap_or_default(),
+            num_threads,
         };
         debug(&config, format!("Created config {:?}", config).as_str());
         Ok(config)
@@ -327,7 +342,7 @@ impl Searcher {
     pub fn search(&self) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         let re = get_regexp_for_query(&self.config.query, &self.config.file_type);
         let file_type_re = file_type::get_regexp_for_file_type(&self.config.file_type);
-        let mut pool = threads::ThreadPool::new(5);
+        let mut pool = threads::ThreadPool::new(self.config.num_threads);
         let results: Vec<SearchResult> = vec![];
         let results = Arc::new(Mutex::new(results));
 

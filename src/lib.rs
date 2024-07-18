@@ -325,66 +325,68 @@ impl Searcher {
 
     /// Perform the search this struct was built to do
     pub fn search(&self) -> Result<Vec<SearchResult>, Box<dyn Error>> {
-        search(&self.config)
-    }
-}
+        let re = get_regexp_for_query(&self.config.query, &self.config.file_type);
+        let file_type_re = file_type::get_regexp_for_file_type(&self.config.file_type);
+        let mut pool = threads::ThreadPool::new(5);
+        let results: Vec<SearchResult> = vec![];
+        let results = Arc::new(Mutex::new(results));
 
-fn search(config: &Config) -> Result<Vec<SearchResult>, Box<dyn Error>> {
-    let re = get_regexp_for_query(&config.query, &config.file_type);
-    let file_type_re = file_type::get_regexp_for_file_type(&config.file_type);
-    let mut pool = threads::ThreadPool::new(5);
-    let results: Vec<SearchResult> = vec![];
-    let results = Arc::new(Mutex::new(results));
+        if self.config.no_color {
+            colored::control::set_override(false);
+        }
 
-    if config.no_color {
-        colored::control::set_override(false);
-    }
+        self.debug("Starting searchers");
+        for file_path in &self.config.file_paths {
+            for entry in Walk::new(file_path) {
+                let path = entry?.into_path();
+                if path.is_dir() {
+                    continue;
+                }
+                let path = match path.to_str() {
+                    Some(p) => p.to_string(),
+                    None => return Err("Error getting string from path".into()),
+                };
+                if !file_type_re.is_match(&path) {
+                    continue;
+                }
 
-    debug(config, "Starting searchers");
-    for file_path in &config.file_paths {
-        for entry in Walk::new(file_path) {
-            let path = entry?.into_path();
-            if path.is_dir() {
-                continue;
+                let re1 = re.clone();
+                let path1 = path.clone();
+                let config1 = self.config.clone();
+                let results1 = Arc::clone(&results);
+                pool.execute(move || {
+                    search_file(
+                        &re1,
+                        &path1,
+                        &config1,
+                        move |file_results: Vec<SearchResult>| {
+                            results1
+                                .lock()
+                                .expect("Unable to collect search data from thread")
+                                .extend(file_results);
+                        },
+                    );
+                })
             }
-            let path = match path.to_str() {
-                Some(p) => p.to_string(),
-                None => return Err("Error getting string from path".into()),
-            };
-            if !file_type_re.is_match(&path) {
-                continue;
-            }
+        }
 
-            let re1 = re.clone();
-            let path1 = path.clone();
-            let config1 = config.clone();
-            let results1 = Arc::clone(&results);
-            pool.execute(move || {
-                search_file(
-                    &re1,
-                    &path1,
-                    &config1,
-                    move |file_results: Vec<SearchResult>| {
-                        results1
-                            .lock()
-                            .expect("Unable to collect search data from thread")
-                            .extend(file_results);
-                    },
-                );
-            })
+        self.debug("Waiting for searchers to complete");
+        pool.wait_for_all_jobs_and_stop();
+        self.debug("Searchers complete");
+
+        let results = Arc::into_inner(results)
+            .expect("Unable to collect search results from threads: reference counter failed");
+        let results = results
+            .into_inner()
+            .expect("Unable to collect search results from threads: mutex failed");
+        Ok(results)
+    }
+
+    fn debug(&self, output: &str) {
+        if self.config.debug {
+            println!("{}", output.yellow());
         }
     }
-
-    debug(config, "Waiting for searchers to complete");
-    pool.wait_for_all_jobs_and_stop();
-    debug(config, "Searchers complete");
-
-    let results = Arc::into_inner(results)
-        .expect("Unable to collect search results from threads: reference counter failed");
-    let results = results
-        .into_inner()
-        .expect("Unable to collect search results from threads: mutex failed");
-    Ok(results)
 }
 
 fn debug(config: &Config, output: &str) {

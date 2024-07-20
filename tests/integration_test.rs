@@ -1,5 +1,6 @@
 use grepdef_rust::{Args, SearchResult, Searcher};
 use rstest::rstest;
+use std::num::NonZero;
 
 fn make_args(query: String, file_path: Option<String>, file_type_string: Option<String>) -> Args {
     Args {
@@ -48,6 +49,17 @@ fn search_returns_nothing_for_no_results() {
     let file_type_string = String::from("js");
     let expected: Vec<SearchResult> = vec![];
     let args = make_args(query, Some(file_path), Some(file_type_string));
+    assert_eq!(expected, do_search(args));
+}
+
+#[rstest]
+fn search_returns_matching_js_function_line_with_one_thread() {
+    let file_path = String::from("./tests/fixtures/js-fixture.js");
+    let query = String::from("thisFunctionDoesNotExist");
+    let file_type_string = String::from("js");
+    let expected: Vec<SearchResult> = vec![];
+    let mut args = make_args(query, Some(file_path), Some(file_type_string));
+    args.threads = Some(NonZero::new(1).unwrap());
     assert_eq!(expected, do_search(args));
 }
 

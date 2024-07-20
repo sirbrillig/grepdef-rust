@@ -43,7 +43,7 @@
 //! ```
 //! use grepdef_rust::{Args, Searcher};
 //!
-//! for result in Searcher::new(Args::build_minimal("parseQuery")).unwrap().search().unwrap() {
+//! for result in Searcher::new(Args::from_query("parseQuery")).unwrap().search().unwrap() {
 //!     println!("{}", result.to_grep());
 //! }
 //! ```
@@ -75,7 +75,7 @@ mod threads;
 ///
 /// ```
 /// use grepdef_rust::Args;
-/// let config = Args::build_minimal("parseQuery");
+/// let config = Args::from_query("parseQuery");
 /// assert_eq!(config.query, String::from("parseQuery"));
 /// assert_eq!(config.file_path, None); // The current directory
 /// assert_eq!(config.file_type, None); // Auto-detect the file type
@@ -116,7 +116,7 @@ pub struct Args {
 
 impl Args {
     /// Create a new set of arguments for [Searcher] with the minimal configuration
-    pub fn build_minimal(query: &str) -> Args {
+    pub fn from_query(query: &str) -> Args {
         Args {
             query: query.into(),
             ..Args::default()
@@ -157,6 +157,9 @@ pub enum SearchMethod {
     NoPrescan,
 }
 
+/// The configuration used by a [Searcher]
+///
+/// Created by passing [Args] to [Config::new].
 #[derive(Clone, Debug)]
 struct Config {
     /// The symbol name (function, class, etc.) being searched for

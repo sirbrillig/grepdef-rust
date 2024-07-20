@@ -5,16 +5,6 @@ use regex::Regex;
 use std::fs;
 use std::io::Read;
 
-pub fn guess_file_type(file_paths: &Vec<String>) -> Result<FileType, &'static str> {
-    for file_path in file_paths {
-        let guess = guess_file_type_from_file_path(file_path);
-        if let Some(value) = guess {
-            return Ok(value);
-        }
-    }
-    Err("Unable to guess file type. Try using --type.")
-}
-
 pub fn get_regexp_for_file_type(file_type: &FileType) -> Regex {
     let regexp_string = match file_type {
         FileType::JS => &r"\.(js|jsx|ts|tsx|mjs|cjs)$".to_string(),
@@ -23,7 +13,7 @@ pub fn get_regexp_for_file_type(file_type: &FileType) -> Regex {
     Regex::new(regexp_string).expect("Could not create regex for file extension")
 }
 
-fn guess_file_type_from_file_path(file_path: &str) -> Option<FileType> {
+pub fn guess_file_type_from_file_path(file_path: &str) -> Option<FileType> {
     let js_regex = get_regexp_for_file_type(&FileType::JS);
     let php_regex = get_regexp_for_file_type(&FileType::PHP);
     for entry in Walk::new(file_path) {

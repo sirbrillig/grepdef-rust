@@ -197,7 +197,7 @@ impl Config {
         };
         let file_type = match args.file_type {
             Some(file_type_string) => FileType::from_string(file_type_string)?,
-            None => file_type::guess_file_type(&file_paths)?,
+            None => FileType::from_file_paths(&file_paths)?,
         };
 
         let num_threads = match args.threads {
@@ -253,6 +253,24 @@ impl FileType {
             "php" => Ok(FileType::PHP),
             _ => Err("Invalid file type"),
         }
+    }
+
+    /// Try to guess a [FileType] based on a list of file paths
+    ///
+    /// This can examine files or recursive directories and try to determine the [FileType] to
+    /// search for. It will return the file type of the first file it finds that matches one of the
+    /// file type patterns the crate supports.
+    ///
+    /// If a directory includes multiple supported file types, this could be incorrect, so it's
+    /// more reliable (and faster) to specify a file type explicitly.
+    pub fn from_file_paths(file_paths: &Vec<String>) -> Result<FileType, &'static str> {
+        for file_path in file_paths {
+            let guess = file_type::guess_file_type_from_file_path(file_path);
+            if let Some(value) = guess {
+                return Ok(value);
+            }
+        }
+        Err("Unable to guess file type from file paths")
     }
 }
 

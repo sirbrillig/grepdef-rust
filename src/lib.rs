@@ -202,7 +202,7 @@ impl Config {
 
         let num_threads = match args.threads {
             Some(threads) => threads,
-            None => NonZero::new(5).expect("Number of threads was invalid"),
+            None => NonZero::new(5).expect("Default number of threads was invalid"),
         };
 
         let config = Config {

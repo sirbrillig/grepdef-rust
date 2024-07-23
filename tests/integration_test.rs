@@ -1,4 +1,4 @@
-use grepdef_rust::{Args, SearchResult, Searcher};
+use grepdef::{Args, SearchResult, Searcher};
 use rstest::rstest;
 use std::num::NonZero;
 

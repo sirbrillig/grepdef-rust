@@ -8,7 +8,7 @@
 //! faster in projects with lots of files or where a language server won't work or hasn't yet
 //! started.
 //!
-//! GrepDef since v2 is written in Rust and is designed to be extremely fast.
+//! grepdef since 3.0 is written in Rust and is designed to be extremely fast.
 //!
 //! This can also be used as a library crate for other Rust programs.
 //!
@@ -41,7 +41,7 @@
 //! To use the crate from other Rust code, use [Searcher].
 //!
 //! ```
-//! use grepdef_rust::{Args, Searcher};
+//! use grepdef::{Args, Searcher};
 //!
 //! for result in Searcher::new(Args::from_query("parseQuery")).unwrap().search().unwrap() {
 //!     println!("{}", result.to_grep());
@@ -74,7 +74,7 @@ mod threads;
 /// # Example
 ///
 /// ```
-/// use grepdef_rust::Args;
+/// use grepdef::Args;
 /// let config = Args::from_query("parseQuery");
 /// assert_eq!(config.query, String::from("parseQuery"));
 /// assert_eq!(config.file_path, None); // The current directory
@@ -342,7 +342,7 @@ fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
 /// # Example
 ///
 /// ```
-/// use grepdef_rust::{Args, Searcher};
+/// use grepdef::{Args, Searcher};
 /// let searcher = Searcher::new(Args::new(
 ///     String::from("parseQuery"),
 ///     None,

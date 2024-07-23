@@ -1,6 +1,6 @@
 use clap::Parser;
-use grepdef_rust::Args;
-use grepdef_rust::Searcher;
+use grepdef::Args;
+use grepdef::Searcher;
 use std::process;
 
 fn main() {

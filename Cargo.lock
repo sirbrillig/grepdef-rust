@@ -290,7 +290,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "grepdef-rust"
+name = "grepdef"
 version = "0.1.0"
 dependencies = [
  "clap",

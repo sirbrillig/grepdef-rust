@@ -384,3 +384,71 @@ fn search_returns_matching_php_function_line_for_recursive() {
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }
+
+#[rstest]
+fn search_returns_matching_rs_function_line() {
+    let file_path = String::from("./tests/fixtures/rs-fixture.rs");
+    let query = String::from("query_db");
+    let line_number = Some(1);
+    let file_type_string = String::from("rs");
+    let expected = vec![SearchResult {
+        file_path: file_path.clone(),
+        line_number,
+        text: String::from("pub fn query_db() -> bool {}"),
+    }];
+    let args = make_args(query, Some(file_path), Some(file_type_string));
+    assert_eq!(expected, do_search(args));
+}
+
+#[rstest]
+fn search_returns_matching_rs_function_line_guessing_file_type_from_filename() {
+    let file_path = String::from("./tests/fixtures/rs-fixture.rs");
+    let query = String::from("query_db");
+    let line_number = Some(1);
+    let expected = vec![SearchResult {
+        file_path: file_path.clone(),
+        line_number,
+        text: String::from("pub fn query_db() -> bool {}"),
+    }];
+    let args = make_args(query, Some(file_path), None);
+    assert_eq!(expected, do_search(args));
+}
+
+#[rstest]
+#[case(String::from("query_db"), String::from("rs"), 1)]
+#[case(String::from("public_func"), String::from("rs"), 6)]
+#[case(String::from("Wrapper"), String::from("rs"), 4)]
+#[case(String::from("ContainerWithoutBlock"), String::from("rs"), 9)]
+#[case(String::from("ContainerWithBlock"), String::from("rs"), 11)]
+#[case(String::from("FileType"), String::from("rs"), 19)]
+#[case(String::from("search_file"), String::from("rs"), 29)]
+fn search_returns_expected_line_number_rs(
+    #[case] query: String,
+    #[case] file_type_string: String,
+    #[case] line_number: usize,
+) {
+    let file_path = String::from("./tests/fixtures/rs-fixture.rs");
+    let args = make_args(query, Some(file_path), Some(file_type_string));
+    let actual = do_search(args);
+    assert_eq!(1, actual.len());
+    let first_actual = actual.get(0).expect("Search failed for test");
+    assert_eq!(line_number, first_actual.line_number.unwrap());
+}
+
+#[rstest]
+fn search_returns_matching_rs_function_line_for_recursive() {
+    let file_path = String::from("./tests/fixtures");
+    let query = String::from("query_db");
+    let line_number = Some(1);
+    let file_type_string = String::from("rs");
+    let expected = vec![SearchResult {
+        file_path: String::from("./tests/fixtures/rs-fixture.rs"),
+        line_number,
+        text: String::from("pub fn query_db() -> bool {}"),
+    }];
+    let args = make_args(query, Some(file_path), Some(file_type_string));
+    let actual = do_search(args);
+    println!("{:?}", actual);
+    assert!(actual.iter().all(|item| expected.contains(item)));
+    assert!(expected.iter().all(|item| actual.contains(item)));
+}

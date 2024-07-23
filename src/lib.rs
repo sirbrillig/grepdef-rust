@@ -1,7 +1,7 @@
 #![warn(missing_docs)]
 //! Quick search for symbol definitions in various programming languages
 //!
-//! Currently this supports JS (or TypeScript) and PHP.
+//! Currently this supports Rust, JS (or TypeScript), and PHP.
 //!
 //! This can be used like "Go to definition" in an IDE, except that instead of using a language
 //! server, it just searches for the definition using text parsing. This is less accurate but often
@@ -89,7 +89,7 @@ pub struct Args {
     /// The file path(s) to search; recursively searches directories and respects .gitignore
     pub file_path: Option<Vec<String>>,
 
-    /// The file type to search (js, php); will guess if not set but this is slower
+    /// The file type to search (js, php, rs); will guess if not set but this is slower
     #[arg(short = 't', long = "type")]
     pub file_type: Option<String>,
 
@@ -168,7 +168,7 @@ struct Config {
     /// The list of file paths to search, ignoring invisible or gitignored files
     file_paths: Vec<String>,
 
-    /// The type of files to scan (JS or PHP)
+    /// The type of files to scan (JS or PHP or RS)
     file_type: FileType,
 
     /// Include line numbers in results if true
@@ -189,7 +189,7 @@ struct Config {
 
 impl Config {
     /// Create a new Config using an [Args]
-    pub fn new(args: Args) -> Result<Config, &'static str> {
+    pub fn new(args: Args) -> Result<Config, String> {
         if args.debug {
             let args_formatted = format!("Creating config with args {:?}", args);
             println!("{}", args_formatted.yellow());
@@ -199,7 +199,7 @@ impl Config {
             None => vec![".".into()],
         };
         let file_type = match args.file_type {
-            Some(file_type_string) => FileType::from_string(file_type_string)?,
+            Some(file_type_string) => FileType::from_string(file_type_string.as_str())?,
             None => FileType::from_file_paths(&file_paths)?,
         };
 
@@ -234,6 +234,9 @@ pub enum FileType {
 
     /// The PHP file type
     PHP,
+
+    /// The Rust file type
+    RS,
 }
 
 impl FileType {
@@ -241,8 +244,8 @@ impl FileType {
     ///
     /// You can turn a string into a [FileType] using [FileType::from_string] which also supports
     /// type aliases like `javascript`, `javascriptreact`, or `typescript.tsx`.
-    pub fn from_string(file_type_string: String) -> Result<FileType, &'static str> {
-        match file_type_string.as_str() {
+    pub fn from_string(file_type_string: &str) -> Result<FileType, String> {
+        match file_type_string {
             "js" => Ok(FileType::JS),
             "ts" => Ok(FileType::JS),
             "jsx" => Ok(FileType::JS),
@@ -254,7 +257,8 @@ impl FileType {
             "typescript.tsx" => Ok(FileType::JS),
             "typescriptreact" => Ok(FileType::JS),
             "php" => Ok(FileType::PHP),
-            _ => Err("Invalid file type"),
+            "rs" => Ok(FileType::RS),
+            _ => Err(format!("Invalid file type '{}'", file_type_string)),
         }
     }
 
@@ -326,6 +330,7 @@ fn get_regexp_for_query(query: &str, file_type: &FileType) -> Regex {
             r"(\b(function|var|let|const|class|interface|type)\s+{query}\b|\b{query}\([^)]*\)\s*(:[^\{{]+)?\{{|\b{query}:|@typedef\s*(\{{[^\}}]+\}})?\s*{query}\b)"
         ),
         FileType::PHP => &format!(r"\b(function|class|trait|interface|enum) {query}\b"),
+        FileType::RS => &format!(r"\b(fn|trait|enum|struct|mod) {query}\b"),
     };
     Regex::new(regexp_string).expect("Could not create regex for file type query")
 }
@@ -355,7 +360,7 @@ pub struct Searcher {
 
 impl Searcher {
     /// Create a new Config using an [Args]
-    pub fn new(args: Args) -> Result<Searcher, &'static str> {
+    pub fn new(args: Args) -> Result<Searcher, String> {
         let config = Config::new(args)?;
         Ok(Searcher { config })
     }

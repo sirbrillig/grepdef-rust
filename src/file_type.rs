@@ -9,6 +9,7 @@ pub fn get_regexp_for_file_type(file_type: &FileType) -> Regex {
     let regexp_string = match file_type {
         FileType::JS => &r"\.(js|jsx|ts|tsx|mjs|cjs)$".to_string(),
         FileType::PHP => &r"\.php$".to_string(),
+        FileType::RS => &r"\.rs$".to_string(),
     };
     Regex::new(regexp_string).expect("Could not create regex for file extension")
 }
@@ -16,6 +17,7 @@ pub fn get_regexp_for_file_type(file_type: &FileType) -> Regex {
 pub fn guess_file_type_from_file_path(file_path: &str) -> Option<FileType> {
     let js_regex = get_regexp_for_file_type(&FileType::JS);
     let php_regex = get_regexp_for_file_type(&FileType::PHP);
+    let rs_regex = get_regexp_for_file_type(&FileType::RS);
     for entry in Walk::new(file_path) {
         let path = match entry {
             Ok(path) => path.into_path(),
@@ -33,6 +35,9 @@ pub fn guess_file_type_from_file_path(file_path: &str) -> Option<FileType> {
         }
         if php_regex.is_match(&path) {
             return Some(FileType::PHP);
+        }
+        if rs_regex.is_match(&path) {
+            return Some(FileType::RS);
         }
     }
     None

@@ -1,4 +1,4 @@
-use grepdef::{Args, FileType, SearchResult, Searcher};
+use grepdef::{Args, SearchResult, Searcher};
 use rstest::rstest;
 use std::num::NonZero;
 
@@ -25,12 +25,12 @@ fn do_search(args: Args) -> Vec<SearchResult> {
 
 fn get_default_fixture_for_file_type_string(file_type_string: &str) -> Result<String, String> {
     match file_type_string {
-        "js" => Ok(get_default_fixture_for_file_type(FileType::JS)),
-        "ts" => Ok(String::from("./tests/fixtures/ts-fixture.ts")),
-        "jsx" => Ok(String::from("./tests/fixtures/jsx-fixture.jsx")),
-        "tsx" => Ok(String::from("./tests/fixtures/jsx-fixture.tsx")),
-        "php" => Ok(get_default_fixture_for_file_type(FileType::PHP)),
-        "rs" => Ok(get_default_fixture_for_file_type(FileType::RS)),
+        "js" => Ok(String::from("./tests/fixtures/by-language/js-fixture.js")),
+        "ts" => Ok(String::from("./tests/fixtures/by-language/ts-fixture.ts")),
+        "jsx" => Ok(String::from("./tests/fixtures/by-language/jsx-fixture.jsx")),
+        "tsx" => Ok(String::from("./tests/fixtures/by-language/tsx-fixture.tsx")),
+        "php" => Ok(String::from("./tests/fixtures/by-language/php-fixture.php")),
+        "rs" => Ok(String::from("./tests/fixtures/by-language/rs-fixture.rs")),
         _ => {
             return Err(format!(
                 "No fixture found for file type '{}'",
@@ -40,22 +40,14 @@ fn get_default_fixture_for_file_type_string(file_type_string: &str) -> Result<St
     }
 }
 
-fn get_default_fixture_for_file_type(file_type: FileType) -> String {
-    match file_type {
-        FileType::JS => String::from("./tests/fixtures/js-fixture.js"),
-        FileType::PHP => String::from("./tests/fixtures/php-fixture.php"),
-        FileType::RS => String::from("./tests/fixtures/rs-fixture.rs"),
-    }
-}
-
 fn get_expected_text_line_for_test_search(
     file_type_string: &str,
 ) -> Result<(String, usize), String> {
     match file_type_string {
         "js" => Ok((String::from("function parseQuery() {"), 7)),
-        "ts" => Ok((String::from("function parseQueryTS() {"), 7)),
-        "jsx" => Ok((String::from("function parseQuery() {"), 6)),
-        "tsx" => Ok((String::from("function parseQueryTS() {"), 7)),
+        "ts" => Ok((String::from("function parseQueryTS(): string {"), 7)),
+        "jsx" => Ok((String::from("function parseQuery() {"), 7)),
+        "tsx" => Ok((String::from("function parseQueryTS(): string {"), 7)),
         "php" => Ok((String::from("function parseQuery() {"), 6)),
         "rs" => Ok((String::from("pub fn query_db() -> bool {}"), 1)),
         _ => {
@@ -69,13 +61,13 @@ fn get_expected_text_line_for_test_search(
 
 #[rstest]
 fn search_returns_matching_js_function_line_with_args_new() {
-    let file_path = get_default_fixture_for_file_type(FileType::JS);
+    let file_path = get_default_fixture_for_file_type_string("js").unwrap();
     let query = String::from("parseQuery");
-    let line_number = Some(7);
+    let (text, line_number) = get_expected_text_line_for_test_search("js").unwrap();
     let expected = vec![SearchResult {
         file_path: file_path.clone(),
-        line_number,
-        text: String::from("function parseQuery() {"),
+        line_number: Some(line_number),
+        text,
     }];
     let actual = do_search(Args::new(
         query,
@@ -88,7 +80,7 @@ fn search_returns_matching_js_function_line_with_args_new() {
 
 #[rstest]
 fn search_returns_nothing_for_no_results() {
-    let file_path = get_default_fixture_for_file_type(FileType::JS);
+    let file_path = get_default_fixture_for_file_type_string("js").unwrap();
     let query = String::from("thisFunctionDoesNotExist");
     let file_type_string = String::from("js");
     let expected: Vec<SearchResult> = vec![];
@@ -98,7 +90,7 @@ fn search_returns_nothing_for_no_results() {
 
 #[rstest]
 fn search_returns_matching_js_function_line_with_one_thread() {
-    let file_path = get_default_fixture_for_file_type(FileType::JS);
+    let file_path = get_default_fixture_for_file_type_string("js").unwrap();
     let query = String::from("thisFunctionDoesNotExist");
     let file_type_string = String::from("js");
     let expected: Vec<SearchResult> = vec![];
@@ -109,14 +101,18 @@ fn search_returns_matching_js_function_line_with_one_thread() {
 
 #[rstest]
 fn search_returns_matching_js_function_line_with_two_files() {
-    let file_path = String::from("./tests/fixtures/js-fixture.js ./tests/fixtures/php-fixture.php");
+    let file_path = format!(
+        "{} {}",
+        get_default_fixture_for_file_type_string("js").unwrap(),
+        get_default_fixture_for_file_type_string("php").unwrap()
+    );
     let query = String::from("parseQuery");
-    let line_number = Some(7);
+    let (text, line_number) = get_expected_text_line_for_test_search("js").unwrap();
     let file_type_string = String::from("js");
     let expected = vec![SearchResult {
-        file_path: String::from("./tests/fixtures/js-fixture.js"),
-        line_number,
-        text: String::from("function parseQuery() {"),
+        file_path: get_default_fixture_for_file_type_string("js").unwrap(),
+        line_number: Some(line_number),
+        text,
     }];
     let args = make_args(query, Some(file_path), Some(file_type_string));
     assert_eq!(expected, do_search(args));
@@ -124,14 +120,15 @@ fn search_returns_matching_js_function_line_with_two_files() {
 
 #[rstest]
 fn search_returns_matching_js_function_line_with_one_file_one_directory_matching_on_directory() {
-    let file_path = String::from("./tests/fixtures/ ./tests/fixtures/ignored-fixture.js");
+    let file_path =
+        String::from("./tests/fixtures/ ./tests/fixtures/by-language/ignored-fixture.js");
     let query = String::from("parseQuery");
-    let line_number = Some(6);
+    let (text, line_number) = get_expected_text_line_for_test_search("php").unwrap();
     let file_type_string = String::from("php");
     let expected = vec![SearchResult {
-        file_path: String::from("./tests/fixtures/php-fixture.php"),
-        line_number,
-        text: String::from("function parseQuery() {"),
+        file_path: get_default_fixture_for_file_type_string("php").unwrap(),
+        line_number: Some(line_number),
+        text,
     }];
     let args = make_args(query, Some(file_path), Some(file_type_string));
     assert_eq!(expected, do_search(args));
@@ -139,14 +136,17 @@ fn search_returns_matching_js_function_line_with_one_file_one_directory_matching
 
 #[rstest]
 fn search_returns_matching_js_function_line_with_one_file_one_directory_matching_on_file() {
-    let file_path = String::from("./src/ ./tests/fixtures/js-fixture.js");
+    let file_path = format!(
+        "./src {}",
+        get_default_fixture_for_file_type_string("js").unwrap()
+    );
     let query = String::from("parseQuery");
-    let line_number = Some(7);
+    let (text, line_number) = get_expected_text_line_for_test_search("js").unwrap();
     let file_type_string = String::from("js");
     let expected = vec![SearchResult {
-        file_path: String::from("./tests/fixtures/js-fixture.js"),
-        line_number,
-        text: String::from("function parseQuery() {"),
+        file_path: get_default_fixture_for_file_type_string("js").unwrap(),
+        line_number: Some(line_number),
+        text,
     }];
     let args = make_args(query, Some(file_path), Some(file_type_string));
     assert_eq!(expected, do_search(args));
@@ -201,13 +201,13 @@ fn search_returns_matching_function_line(#[case] query: String, #[case] file_typ
 #[case(String::from("typescript.tsx"))]
 #[case(String::from("typescriptreact"))]
 fn search_returns_matching_js_function_line_with_filetype_alias(#[case] file_type_string: String) {
-    let file_path = get_default_fixture_for_file_type(FileType::JS);
+    let file_path = get_default_fixture_for_file_type_string("js").unwrap();
     let query = String::from("parseQuery");
-    let line_number = Some(7);
+    let (text, line_number) = get_expected_text_line_for_test_search("js").unwrap();
     let expected = vec![SearchResult {
         file_path: file_path.clone(),
-        line_number,
-        text: String::from("function parseQuery() {"),
+        line_number: Some(line_number),
+        text,
     }];
     let args = make_args(query, Some(file_path), Some(file_type_string));
     assert_eq!(expected, do_search(args));
@@ -274,22 +274,25 @@ fn search_returns_expected_line_number_for_file_type(
 fn search_returns_matching_js_function_line_for_recursive() {
     let file_path = String::from("./tests");
     let query = String::from("parseQuery");
-    let line_number = Some(7);
+    let (text_js, line_number_js) = get_expected_text_line_for_test_search("js").unwrap();
+    let (text_jsx, line_number_jsx) = get_expected_text_line_for_test_search("jsx").unwrap();
     let file_type_string = String::from("js");
     let expected = vec![
         SearchResult {
-            file_path: String::from("./tests/fixtures/js-fixture.js"),
-            line_number,
-            text: String::from("function parseQuery() {"),
+            file_path: get_default_fixture_for_file_type_string("js").unwrap(),
+            line_number: Some(line_number_js),
+            text: text_js,
         },
         SearchResult {
-            file_path: String::from("./tests/fixtures/jsx-fixture.jsx"),
-            line_number,
-            text: String::from("function parseQuery() {"),
+            file_path: get_default_fixture_for_file_type_string("jsx").unwrap(),
+            line_number: Some(line_number_jsx),
+            text: text_jsx,
         },
     ];
     let args = make_args(query, Some(file_path), Some(file_type_string));
     let actual = do_search(args);
+    println!("expected {:?}", expected);
+    println!("actual   {:?}", actual);
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }
@@ -297,47 +300,52 @@ fn search_returns_matching_js_function_line_for_recursive() {
 #[rstest]
 fn search_returns_matching_js_function_line_for_recursive_default_path() {
     let query = String::from("parseQuery");
-    let line_number = Some(7);
+    let (text_js, line_number_js) = get_expected_text_line_for_test_search("js").unwrap();
+    let (text_jsx, line_number_jsx) = get_expected_text_line_for_test_search("jsx").unwrap();
     let file_type_string = String::from("js");
     let expected = vec![
         SearchResult {
-            file_path: String::from("./tests/fixtures/js-fixture.js"),
-            line_number,
-            text: String::from("function parseQuery() {"),
+            file_path: get_default_fixture_for_file_type_string("js").unwrap(),
+            line_number: Some(line_number_js),
+            text: text_js,
         },
         SearchResult {
-            file_path: String::from("./tests/fixtures/jsx-fixture.jsx"),
-            line_number,
-            text: String::from("function parseQuery() {"),
+            file_path: get_default_fixture_for_file_type_string("jsx").unwrap(),
+            line_number: Some(line_number_jsx),
+            text: text_jsx,
         },
     ];
     let args = make_args(query, None, Some(file_type_string));
     let actual = do_search(args);
+    println!("expected {:?}", expected);
+    println!("actual   {:?}", actual);
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }
 
 #[rstest]
 fn search_returns_matching_ts_function_line_for_recursive() {
-    let file_path = String::from("./tests");
+    let file_path = String::from("./tests/fixtures");
     let query = String::from("parseQueryTS");
-    let line_number = Some(7);
-    // Note that the type is still JS
-    let file_type_string = String::from("js");
+    let (text_ts, line_number_ts) = get_expected_text_line_for_test_search("ts").unwrap();
+    let (text_tsx, line_number_tsx) = get_expected_text_line_for_test_search("tsx").unwrap();
+    let file_type_string = String::from("ts");
     let expected = vec![
         SearchResult {
-            file_path: String::from("./tests/fixtures/ts-fixture.ts"),
-            line_number,
-            text: String::from("function parseQueryTS(): string {"),
+            file_path: get_default_fixture_for_file_type_string("ts").unwrap(),
+            line_number: Some(line_number_ts),
+            text: text_ts,
         },
         SearchResult {
-            file_path: String::from("./tests/fixtures/tsx-fixture.tsx"),
-            line_number,
-            text: String::from("function parseQueryTS(): string {"),
+            file_path: get_default_fixture_for_file_type_string("tsx").unwrap(),
+            line_number: Some(line_number_tsx),
+            text: text_tsx,
         },
     ];
     let args = make_args(query, Some(file_path), Some(file_type_string));
     let actual = do_search(args);
+    println!("expected {:?}", expected);
+    println!("actual   {:?}", actual);
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }
@@ -360,15 +368,17 @@ fn search_returns_matching_php_function_line_guessing_file_type_from_directory()
 fn search_returns_matching_php_function_line_for_recursive() {
     let file_path = String::from("./tests");
     let query = String::from("parseQuery");
-    let line_number = Some(6);
+    let (text, line_number) = get_expected_text_line_for_test_search("php").unwrap();
     let file_type_string = String::from("php");
     let expected = vec![SearchResult {
-        file_path: String::from("./tests/fixtures/php-fixture.php"),
-        line_number,
-        text: String::from("function parseQuery() {"),
+        file_path: get_default_fixture_for_file_type_string("php").unwrap(),
+        line_number: Some(line_number),
+        text,
     }];
     let args = make_args(query, Some(file_path), Some(file_type_string));
     let actual = do_search(args);
+    println!("expected {:?}", expected);
+    println!("actual   {:?}", actual);
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }
@@ -377,16 +387,17 @@ fn search_returns_matching_php_function_line_for_recursive() {
 fn search_returns_matching_rs_function_line_for_recursive() {
     let file_path = String::from("./tests/fixtures");
     let query = String::from("query_db");
-    let line_number = Some(1);
+    let (text, line_number) = get_expected_text_line_for_test_search("rs").unwrap();
     let file_type_string = String::from("rs");
     let expected = vec![SearchResult {
-        file_path: String::from("./tests/fixtures/rs-fixture.rs"),
-        line_number,
-        text: String::from("pub fn query_db() -> bool {}"),
+        file_path: get_default_fixture_for_file_type_string("rs").unwrap(),
+        line_number: Some(line_number),
+        text,
     }];
     let args = make_args(query, Some(file_path), Some(file_type_string));
     let actual = do_search(args);
-    println!("{:?}", actual);
+    println!("expected {:?}", expected);
+    println!("actual   {:?}", actual);
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
 }

@@ -153,14 +153,20 @@ fn search_returns_matching_js_function_line_with_one_file_one_directory_matching
 }
 
 #[rstest]
-fn search_returns_matching_js_function_line_guessing_file_type() {
-    let file_path = get_default_fixture_for_file_type(FileType::JS);
-    let query = String::from("parseQuery");
-    let line_number = Some(7);
+#[case(String::from("parseQuery"), String::from("js"))]
+#[case(String::from("parseQuery"), String::from("php"))]
+#[case(String::from("query_db"), String::from("rs"))]
+fn search_returns_matching_function_line_guessing_file_type_from_file_name(
+    #[case] query: String,
+    #[case] file_type_string: String,
+) {
+    let file_path = get_default_fixture_for_file_type_string(file_type_string.as_str()).unwrap();
+    let (text, line_number) =
+        get_expected_text_line_for_test_search(file_type_string.as_str()).unwrap();
     let expected = vec![SearchResult {
         file_path: file_path.clone(),
-        line_number,
-        text: String::from("function parseQuery() {"),
+        line_number: Some(line_number),
+        text,
     }];
     let args = make_args(query, Some(file_path), None);
     assert_eq!(expected, do_search(args));
@@ -337,20 +343,6 @@ fn search_returns_matching_ts_function_line_for_recursive() {
 }
 
 #[rstest]
-fn search_returns_matching_php_function_line_guessing_file_type_from_filename() {
-    let file_path = get_default_fixture_for_file_type(FileType::PHP);
-    let query = String::from("parseQuery");
-    let line_number = Some(6);
-    let expected = vec![SearchResult {
-        file_path: file_path.clone(),
-        line_number,
-        text: String::from("function parseQuery() {"),
-    }];
-    let args = make_args(query, Some(file_path), None);
-    assert_eq!(expected, do_search(args));
-}
-
-#[rstest]
 fn search_returns_matching_php_function_line_guessing_file_type_from_directory() {
     let file_path = String::from("./tests/fixtures/only-php/other-php-fixture.php");
     let query = String::from("otherPhpFunction");
@@ -379,20 +371,6 @@ fn search_returns_matching_php_function_line_for_recursive() {
     let actual = do_search(args);
     assert!(actual.iter().all(|item| expected.contains(item)));
     assert!(expected.iter().all(|item| actual.contains(item)));
-}
-
-#[rstest]
-fn search_returns_matching_rs_function_line_guessing_file_type_from_filename() {
-    let file_path = get_default_fixture_for_file_type(FileType::RS);
-    let query = String::from("query_db");
-    let line_number = Some(1);
-    let expected = vec![SearchResult {
-        file_path: file_path.clone(),
-        line_number,
-        text: String::from("pub fn query_db() -> bool {}"),
-    }];
-    let args = make_args(query, Some(file_path), None);
-    assert_eq!(expected, do_search(args));
 }
 
 #[rstest]
